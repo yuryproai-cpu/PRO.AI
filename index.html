@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>PRO.AI</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ===== Прокрутка и отступ от нижнего меню ===== */
+    .screen {
+      overflow-y: auto !important;
+      padding-bottom: 90px !important;
+    }
+    /* ===== Все поля форм — на всю ширину, в столбик ===== */
+    section.screen input,
+    section.screen select,
+    section.screen textarea {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box;
+      margin: 8px 0;
+      padding: 12px;
+      font-size: 15px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      opacity: 0.7;
+      margin: 12px 0 0;
+    }
+    /* ===== Карточка профиля ===== */
+    .profile-card {
+      display: flex !important; flex-direction: column !important;
+      align-items: center !important; text-align: center;
+      max-width: 100% !important; overflow: hidden;
+    }
+    .profile-card .avatar-big {
+      width: 110px !important; height: 110px !important; flex: 0 0 auto !important;
+      border-radius: 50% !important; background-size: cover !important;
+      background-position: center !important;
+      display: flex !important; align-items: center !important;
+      justify-content: center !important; overflow: hidden;
+    }
+    #lobby-name {
+      display: block !important; width: 100% !important; max-width: 95% !important;
+      min-width: 0 !important; white-space: nowrap !important;
+      overflow: hidden !important; text-overflow: ellipsis; box-sizing: border-box;
+    }
+    .provider-note { text-align: center; font-size: 12px; opacity: 0.6; margin-top: 8px; }
+    .btn-back {
+      display: block; width: 100%; padding: 12px; font-size: 15px;
+      border-radius: 10px; border: 1px solid #3a4d66;
+      background: #243244; color: #fff; margin-bottom: 14px;
+    }
+    /* ===== Списки и карточки ===== */
+    .section-title { margin: 16px 0 6px; font-size: 16px; font-weight: bold; }
+    .game-card {
+      border: 1px solid #2c3d52; border-radius: 12px;
+      padding: 12px; margin: 10px 0; background: #1c2938;
+      max-width: 100%; overflow: hidden;
+    }
+    .game-head { display: flex; align-items: center; gap: 10px; }
+    .game-icon {
+      width: 56px; height: 56px; flex: 0 0 auto; border-radius: 10px;
+      background: #0e1620; display: flex; align-items: center;
+      justify-content: center; font-size: 30px;
+    }
+    .game-title { font-weight: bold; font-size: 17px; }
+    .game-author { font-size: 12px; margin-top: 2px; }
+    .badge-official { color: #6fd08c; }
+    .badge-student { color: #e0c060; }
+    .game-desc { font-size: 13px; opacity: 0.9; margin: 8px 0; }
+    .btn-mini {
+      padding: 8px 12px; font-size: 13px; border-radius: 8px;
+      border: 1px solid #3a4d66; background: #243244; color: #fff;
+      margin: 4px 6px 0 0;
+      display: inline-block !important;
+      width: auto !important;
+      position: static !important;
+      flex: 0 0 auto !important;
+    }
+    .btn-mini.green { background: #2f6e3c; border-color: #3f8a50; }
+    .btn-mini.red { background: #6e2f2f; border-color: #8a3f3f; }
+    .empty-note { font-size: 13px; opacity: 0.6; }
+    .form-note { font-size: 13px; opacity: 0.7; margin-bottom: 10px; }
+    /* ===== Строки списков (заявки, тарифы, уроки) ===== */
+    .lesson-item {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px;
+      border: 1px solid #2c3d52; border-radius: 10px;
+      padding: 12px; margin: 8px 0; background: #1c2938;
+      max-width: 100%;
+    }
+    .lesson-item .lt { flex: 1 1 auto !important; min-width: 0; font-size: 15px; }
+    .lesson-item .lv { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+    .lesson-item.locked { opacity: 0.55; }
+    /* ===== Витрина тарифов ===== */
+    .tariff-card {
+      border: 1px solid #3f8a50; border-radius: 12px;
+      padding: 14px; margin: 10px 0; background: #16301f;
+    }
+    .tariff-name { font-weight: bold; font-size: 18px; }
+    .tariff-price { font-size: 16px; margin: 6px 0; }
+    .price-old { text-decoration: line-through; opacity: 0.5; margin-right: 8px; }
+    .discount-badge { color: #ffd66e; font-size: 13px; margin: 4px 0; }
+    .tariff-desc { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
+    /* ===== Чтение урока: защита от копирования ===== */
+    #lesson-body {
+      user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+      font-size: 15px; line-height: 1.6; white-space: pre-wrap;
+    }
+    #lesson-wrap { position: relative; overflow: hidden; }
+    #watermark {
+      position: absolute; inset: 0; pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+      transform: rotate(-25deg); font-size: 20px; font-weight: bold;
+      color: rgba(255,255,255,0.05); text-align: center;
+      word-break: break-all; padding: 20px;
+    }
+    textarea { min-height: 120px; }
+  </style>
+</head>
+<body>
+
+  <!-- ========== ЭКРАН: ВХОД (ЗАГЛУШКА АВТОРИЗАЦИИ) ========== -->
+  <section id="screen-auth" class="screen">
+    <h1>PRO.AI</h1>
+    <p class="stub-text">Платформа игр. Вход через аккаунт.</p>
+    <button id="btn-auth-telegram">Войти через Telegram</button>
+    <button id="btn-auth-google">Войти через Google</button>
+    <button id="btn-auth-admin" class="btn-mini">DEV: войти как админ</button>
+  </section>
+
+  <!-- ========== ЭКРАН: ЛОББИ ========== -->
+  <section id="screen-lobby" class="screen hidden">
+    <div class="profile-card">
+      <div id="lobby-avatar" class="avatar-big"></div>
+      <h2 id="lobby-name"></h2>
+      <p class="provider-note" id="lobby-provider"></p>
+    </div>
+    <div class="hub-menu">
+      <button id="btn-games">🎮 Игры</button>
+      <button id="btn-learn">🎓 Обучение</button>
+      <button id="btn-rules">📜 Правила</button>
+      <button id="btn-chats">💬 Чаты</button>
+      <button id="btn-forum">📖 Форум</button>
+    </div>
+  </section>
+
+  <!-- ========== ЭКРАН: ВИТРИНА ИГР ========== -->
+  <section id="screen-games" class="screen hidden">
+    <h1>🎮 Игры</h1>
+    <div id="games-content"></div>
+  </section>
+
+  <!-- ========== ЭКРАН: ФОРМА ИГРЫ ========== -->
+  <section id="screen-game-form" class="screen hidden">
+    <button class="btn-back" data-target="screen-games">⬅ Назад</button>
+    <h1 id="gf-heading">Новая игра</h1>
+    <p class="form-note" id="gf-note"></p>
+
+    <label class="form-label" for="gf-title">Название игры</label>
+    <input type="text" id="gf-title" maxlength="40">
+
+    <label class="form-label" for="gf-icon">Иконка — эмодзи</label>
+    <input type="text" id="gf-icon" placeholder="🎮" maxlength="4">
+
+    <label class="form-label" for="gf-desc">Краткое описание</label>
+    <input type="text" id="gf-desc" maxlength="120">
+
+    <label class="form-label" for="gf-tg">Ссылка на Telegram (можно позже)</label>
+    <input type="text" id="gf-tg" maxlength="120">
+
+    <label class="form-label" for="gf-market">Ссылка на Google Play (можно позже)</label>
+    <input type="text" id="gf-market" maxlength="120">
+
+    <button id="btn-gf-submit">Отправить</button>
+  </section>
+
+  <!-- ========== ЭКРАН: ОБУЧЕНИЕ ========== -->
+  <section id="screen-learn" class="screen hidden">
+    <h1>🎓 Обучение</h1>
+    <div id="learn-content"></div>
+  </section>
+
+  <!-- ========== ЭКРАН: ЧТЕНИЕ УРОКА ========== -->
+  <section id="screen-lesson" class="screen hidden">
+    <button class="btn-back" data-target="screen-learn">⬅ К урокам</button>
+    <h1 id="lesson-title"></h1>
+    <div id="lesson-video"></div>
+    <div id="lesson-wrap">
+      <div id="lesson-body"></div>
+      <div id="watermark"></div>
+    </div>
+  </section>
+
+  <!-- ========== ЭКРАН: ПАНЕЛЬ АДМИНА ========== -->
+  <section id="screen-admin" class="screen hidden">
+    <button class="btn-back" data-target="screen-settings">⬅ Назад</button>
+    <h1>🛡 Панель админа</h1>
+    <p class="form-note">Тестовый режим: роли и тарифы выдаются себе.
+    В боевой версии это делает сервер по вашему решению.</p>
+    <div id="admin-roles">
+      <button class="btn-mini" data-role="guest">Гость</button>
+      <button class="btn-mini" data-role="student">Ученик</button>
+      <button class="btn-mini" data-role="developer">Разработчик</button>
+      <button class="btn-mini" data-role="admin">Админ</button>
+    </div>
+    <p class="provider-note" id="admin-current-role"></p>
+
+    <div class="section-title">Тариф обучения</div>
+    <div id="admin-learn-tariff">
+      <button class="btn-mini" data-tariff="">Нет</button>
+      <button class="btn-mini" data-tariff="book">Книга</button>
+      <button class="btn-mini" data-tariff="video">Видео</button>
+      <button class="btn-mini" data-tariff="pro">PRO</button>
+    </div>
+    <p class="provider-note" id="admin-current-tariff"></p>
+
+    <div class="section-title">Разделы управления</div>
+    <button id="btn-admin-learn">📚 Редактор обучения</button>
+  </section>
+
+  <!-- ========== ЭКРАН: РЕДАКТОР ОБУЧЕНИЯ (АДМИН) ========== -->
+  <section id="screen-admin-learn" class="screen hidden">
+    <button class="btn-back" data-target="screen-admin">⬅ Назад</button>
+    <h1>📚 Редактор обучения</h1>
+    <div class="section-title">Заявки «Хочу учиться»</div>
+    <div id="learn-requests"></div>
+    <div class="section-title">Тарифы</div>
+    <div id="tariffs-admin"></div>
+    <button id="btn-add-tariff" class="btn-mini green">+ Добавить тариф</button>
+    <div class="section-title">Уроки</div>
+    <div id="lessons-admin"></div>
+    <button id="btn-add-lesson" class="btn-mini green">+ Добавить урок</button>
+  </section>
+
+  <!-- ========== ЭКРАН: ФОРМА ТАРИФА (АДМИН) ========== -->
+  <section id="screen-tariff-form" class="screen hidden">
+    <button class="btn-back" data-target="screen-admin-learn">⬅ Назад</button>
+    <h1 id="tf-heading">Тариф</h1>
+
+    <label class="form-label" for="tf-name">Название тарифа</label>
+    <input type="text" id="tf-name" maxlength="20">
+
+    <label class="form-label" for="tf-level">Уровень доступа (что открывает тариф)</label>
+    <select id="tf-level">
+      <option value="book">Книга — весь курс текстом</option>
+      <option value="video">Видео — книга + видеоуроки</option>
+      <option value="pro">PRO — всё + сотрудничество</option>
+    </select>
+
+    <label class="form-label" for="tf-price">Цена, ₽</label>
+    <input type="number" id="tf-price" min="0">
+
+    <label class="form-label" for="tf-desc">Что входит в тариф (описание на витрине)</label>
+    <input type="text" id="tf-desc" maxlength="120">
+
+    <label class="form-label" for="tf-discount">Скидка, % (0 — без скидки)</label>
+    <input type="number" id="tf-discount" min="0" max="90">
+
+    <label class="form-label" for="tf-days">Срок скидки, дней (0 — бессрочно)</label>
+    <input type="number" id="tf-days" min="0">
+
+    <button id="btn-tf-submit">Сохранить тариф</button>
+  </section>
+
+  <!-- ========== ЭКРАН: ФОРМА УРОКА (АДМИН) ========== -->
+  <section id="screen-lesson-form" class="screen hidden">
+    <button class="btn-back" data-target="screen-admin-learn">⬅ Назад</button>
+    <h1 id="lf-heading">Урок</h1>
+
+    <label class="form-label" for="lf-title">Заголовок урока</label>
+    <input type="text" id="lf-title" maxlength="60">
+
+    <label class="form-label" for="lf-level">Кому виден урок</label>
+    <select id="lf-level">
+      <option value="free">Всем (вводный урок / вкусняшка)</option>
+      <option value="book">Тариф «Книга» и выше</option>
+      <option value="video">Тариф «Видео» и выше</option>
+      <option value="pro">Только тариф «PRO»</option>
+    </select>
+
+    <label class="form-label" for="lf-video">Ссылка на видео (необязательно)</label>
+    <input type="text" id="lf-video" maxlength="200">
+
+    <label class="form-label" for="lf-body">Текст урока</label>
+    <textarea id="lf-body"></textarea>
+
+    <button id="btn-lf-submit">Сохранить урок</button>
+  </section>
+
+  <!-- ========== ЭКРАН: ПРАВИЛА (ЗАГЛУШКА) ========== -->
+  <section id="screen-rules" class="screen hidden">
+    <button class="btn-back" data-target="screen-lobby">⬅ На главную</button>
+    <h1>📜 Правила</h1>
+    <p class="stub-text">Раздел правил в разработке.</p>
+  </section>
+
+  <!-- ========== ЭКРАН: ЧАТЫ (ЗАГЛУШКА) ========== -->
+  <section id="screen-chats" class="screen hidden">
+    <h1>💬 Чаты</h1>
+    <p class="stub-text">Модуль чатов в разработке.</p>
+  </section>
+
+  <!-- ========== ЭКРАН: ФОРУМ (ЗАГЛУШКА) ========== -->
+  <section id="screen-forum" class="screen hidden">
+    <h1>📖 Форум</h1>
+    <p class="stub-text">Модуль форума в разработке.</p>
+  </section>
+
+  <!-- ========== ЭКРАН: НАСТРОЙКИ ========== -->
+  <section id="screen-settings" class="screen hidden">
+    <h1>⚙️ Настройки</h1>
+    <button id="btn-change-avatar">Сменить фото профиля</button>
+    <input type="file" id="avatar-input" accept="image/*" class="hidden">
+    <input type="text" id="settings-name" placeholder="Имя игрока (необязательно)" maxlength="20">
+    <button id="btn-save-name">Сохранить имя</button>
+    <button id="btn-admin-panel" class="hidden">🛡 Панель админа</button>
+    <button id="btn-reset" class="danger">Удалить аккаунт</button>
+  </section>
+
+  <!-- Нижняя навигация -->
+  <nav id="tabbar" class="hidden">
+    <button data-tab="screen-lobby" class="active">🏠</button>
+    <button data-tab="screen-games">🎮</button>
+    <button data-tab="screen-chats">💬</button>
+    <button data-tab="screen-forum">📖</button>
+    <button data-tab="screen-settings">⚙️</button>
+  </nav>
+
+  <div id="toast"></div>
+
+  <script src="js/account.js"></script>
+  <script src="js/games-catalog.js"></script>
+  <script src="js/learn.js"></script>
+  <script src="js/avatar-editor.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
