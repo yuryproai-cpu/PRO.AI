@@ -9,6 +9,16 @@ const SCREENS = [
 const ROLE_LABELS = { guest: "Гость", student: "Ученик", developer: "Разработчик", admin: "Админ" };
 const LEVEL_LABELS = { free: "Свободный доступ", book: "Книга", video: "Видео", pro: "PRO" };
 
+// --- Telegram Mini App ---
+const tg = window.Telegram ? window.Telegram.WebApp : null;
+const tgUser = (tg && tg.initDataUnsafe) ? tg.initDataUnsafe.user : null;
+
+// открытие ссылок способом, правильным для текущей среды
+function openLink(url) {
+  if (tg && tg.openLink) tg.openLink(url);
+  else window.open(url, "_blank");
+}
+
 function showScreen(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle("hidden", s !== id));
   document.querySelectorAll("#tabbar button").forEach(b => {
@@ -108,7 +118,7 @@ function addLinkBtn(card, label, link) {
   b.className = "btn-mini";
   b.textContent = label;
   b.onclick = () => {
-    if (link) window.open(link, "_blank");
+    if (link) openLink(link);
     else showToast("Ссылка появится после релиза");
   };
   card.appendChild(b);
@@ -224,6 +234,9 @@ function submitGameForm() {
 }
 // ---------- обучение ----------
 
+// секретный код администратора — поменяйте на свой
+const ADMIN_PIN = "Yuryury1983$$$";
+
 function discountText(t) {
   const pr = Learn.priceNow(t);
   if (!pr.discount) return "";
@@ -257,7 +270,6 @@ function renderLearn() {
     box.appendChild(p);
   }
 
-  // --- список уроков ---
   const lessons = Learn.getLessons();
   lessons.forEach(l => {
     const avail = admin || Learn.lessonAvailable(l, tariff);
@@ -277,7 +289,6 @@ function renderLearn() {
     box.appendChild(item);
   });
 
-  // --- витрина тарифов для тех, у кого тарифа нет ---
   if (!tariff && !admin) {
     const h = document.createElement("div");
     h.className = "section-title";
@@ -344,7 +355,7 @@ function openLesson(id) {
     const b = document.createElement("button");
     b.className = "btn-mini green";
     b.textContent = "▶ Смотреть видеоурок";
-    b.onclick = () => window.open(l.videoUrl, "_blank");
+    b.onclick = () => openLink(l.videoUrl);
     v.appendChild(b);
   }
 
@@ -357,7 +368,6 @@ function openLesson(id) {
 // ---------- редактор обучения (админ) ----------
 
 function renderAdminLearn() {
-  // заявки
   const rq = $("#learn-requests");
   rq.textContent = "";
   const requests = Learn.getRequests();
@@ -382,7 +392,6 @@ function renderAdminLearn() {
     rq.appendChild(item);
   });
 
-  // тарифы
   const tb = $("#tariffs-admin");
   tb.textContent = "";
   Learn.getTariffs().forEach(tf => {
@@ -407,7 +416,6 @@ function renderAdminLearn() {
     tb.appendChild(item);
   });
 
-  // уроки
   const lb = $("#lessons-admin");
   lb.textContent = "";
   Learn.getLessons().forEach(l => {
@@ -513,10 +521,21 @@ function init() {
   document.addEventListener("copy", e => e.preventDefault());
   document.addEventListener("cut", e => e.preventDefault());
 
-  // --- вход (заглушка авторизации) ---
+  // --- Telegram: разворачиваем приложение на весь экран ---
+  if (tg) { tg.ready(); tg.expand(); }
+
+  // --- вход ---
   $("#btn-auth-telegram").onclick = () => { Account.create("telegram", "dev_test_user"); enterLobby(); };
   $("#btn-auth-google").onclick = () => { Account.create("google", "dev_test_user"); enterLobby(); };
-  $("#btn-auth-admin").onclick = () => { Account.create("admin-test", "dev_admin", "admin"); enterLobby(); };
+
+  // админ — только по секретному коду
+  $("#btn-auth-admin").onclick = () => {
+    const pin = prompt("Введите код администратора");
+    if (pin === null) return;
+    if (pin !== ADMIN_PIN) { showToast("Неверный код"); return; }
+    Account.create("admin-test", "dev_admin", "admin");
+    enterLobby();
+  };
 
   function enterLobby() {
     renderLobby();
@@ -602,7 +621,14 @@ function init() {
   // --- запуск ---
   GamesCatalog.load();
   Learn.load();
-  if (Account.load()) {
+  // авто-вход: открыл из бота Telegram — вошёл под своим аккаунтом
+  if (tgUser) {
+    if (!Account.load()) {
+      Account.create("telegram",
+        tgUser.username ? "@" + tgUser.username : "id" + tgUser.id);
+    }
+    enterLobby();
+  } else if (Account.load()) {
     enterLobby();
   } else {
     showScreen("screen-auth");
