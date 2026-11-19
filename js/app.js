@@ -1,7 +1,8 @@
 /* ============================================================
-   PRO.AI · js/app.js — v0.2.4
-   Инициализация, сплэш, лобби, нижняя навигация.
-   Доступ к сессии — ТОЛЬКО через accessors ниже.
+   PRO.AI · js/app.js — v0.2.6
+   + вкладка «Игры»: подключение games-catalog.js (каталоги,
+   добавление/удаление для админа, модерация игр учеников).
+   Остальное — как в v0.2.5.
    ============================================================ */
 
 'use strict';
@@ -24,6 +25,13 @@ function setSessionMigration(migration) {
   window.PROAI.session.migration = migration;
 }
 
+/* ---------- Утилиты ---------- */
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 /* ---------- Тост ---------- */
 
 function showToast(text, ms = 3000) {
@@ -39,7 +47,7 @@ function showToast(text, ms = 3000) {
   t._timer = setTimeout(() => { t.hidden = true; }, ms);
 }
 
-/* ---------- Сплэш: 4.5 c или тап; runSplash (logo.js) — опционален ---------- */
+/* ---------- Сплэш: 4.5 c или тап ---------- */
 
 async function splashWait() {
   const splash = document.getElementById('splash');
@@ -90,7 +98,7 @@ function renderLobby(account) {
     avatarEl.src = AVATAR_PLACEHOLDER;
     if (account.hasAvatar) {
       if (account._avatarUrl) {
-        avatarEl.src = account._avatarUrl;              // кэш сессии
+        avatarEl.src = account._avatarUrl;
       } else {
         getAvatarDataUrl(account.uid).then(url => {
           if (url) { account._avatarUrl = url; avatarEl.src = url; }
@@ -102,7 +110,7 @@ function renderLobby(account) {
 
 async function onEditName() {
   const account = getSessionAccount();
-  if (!account) { console.warn('[app] сессия не готова, правка имени отложена'); return; }
+  if (!account) return;
   const input = prompt('Имя в лобби (до 20 символов):', account.name || '');
   if (input === null) return;
   try {
@@ -116,7 +124,7 @@ async function onEditName() {
 
 async function onChangeAvatar(file) {
   const account = getSessionAccount();
-  if (!account) { console.warn('[app] сессия не готова'); return; }
+  if (!account) return;
   try {
     const dataUrl = await fileToAvatarDataUrl(file);
     await saveAvatarDataUrl(dataUrl);
@@ -128,12 +136,212 @@ async function onChangeAvatar(file) {
   }
 }
 
+/* ============================================================
+   Вкладка «Игры» (модуль GamesCatalog из js/games-catalog.js)
+   ============================================================ */
+
+function askGameFields(includeAuthor) {
+  const title = (prompt('Название игры:') || '').trim();
+  if (!title) return null;
+  const description = (prompt('Описание (можно пропустить):') || '').trim();
+  const icon = (prompt('Иконка — эмодзи (можно пропустить):') || '').trim();
+  let author = 'Ученик PRO.AI';
+  let linkTelegram = '', linkMarket = '';
+  if (includeAuthor) {
+    author = (prompt('Автор:', 'PRO.AI') || 'PRO.AI').trim();
+    linkTelegram = (prompt('Ссылка Telegram (можно пропустить):') || '').trim();
+    linkMarket = (prompt('Ссылка на маркет (можно пропустить):') || '').trim();
+  } else {
+    linkTelegram = (prompt('Ссылка Telegram (можно пропустить):') || '').trim();
+    linkMarket = (prompt('Ссылка на маркет (можно пропустить):') || '').trim();
+  }
+  return { title, description, icon, author, linkTelegram, linkMarket };
+}
+
+function onAddOfficial() {
+  const game = askGameFields(true);
+  if (!game) return;
+  GamesCatalog.addOfficial(game);
+  showToast('Игра добавлена в PRO.AI Games');
+  renderGames(getSessionAccount());
+}
+
+function onProposeGame() {
+  const account = getSessionAccount();
+  const game = askGameFields(false);
+  if (!game) return;
+  game.author = account?.name || 'Ученик PRO.AI';
+  GamesCatalog.proposeStudent(game);
+  showToast('Игра отправлена на модерацию');
+  renderGames(account);
+}
+
+function onModerate(id, decision) {
+  GamesCatalog.moderate(id, decision);
+  showToast(decision === 'approve' ? 'Игра одобрена' : 'Игра отклонена');
+  renderGames(getSessionAccount());
+}
+
+function onRemoveGame(id) {
+  if (!confirm('Удалить игру из каталога?')) return;
+  GamesCatalog.remove(id);
+  showToast('Игра удалена');
+  renderGames(getSessionAccount());
+}
+
+function gameCard(g, account, opts = {}) {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const icon = document.createElement('div');
+  icon.className = 'game-icon';
+  icon.textContent = g.icon || '🎮';
+  card.appendChild(icon);
+
+  const body = document.createElement('div');
+  body.style.flex = '1';
+  body.style.minWidth = '0';
+
+  const title = document.createElement('div');
+  title.className = 'card-title';
+  title.textContent = g.title || '(без названия)';
+  body.appendChild(title);
+
+  if (g.description) {
+    const sub = document.createElement('div');
+    sub.className = 'card-sub';
+    sub.textContent = g.description;
+    body.appendChild(sub);
+  }
+
+  const badge = document.createElement('div');
+  badge.className = 'badge';
+  badge.textContent = 'Автор: ' + (g.author || '—');
+  body.appendChild(badge);
+
+  if (g.linkTelegram || g.linkMarket) {
+    const links = document.createElement('div');
+    links.className = 'card-links';
+    if (g.linkTelegram) {
+      const a = document.createElement('a');
+      a.href = g.linkTelegram;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = 'Открыть в Telegram';
+      links.appendChild(a);
+    }
+    if (g.linkMarket) {
+      const a = document.createElement('a');
+      a.href = g.linkMarket;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = 'Маркет';
+      links.appendChild(a);
+    }
+    body.appendChild(links);
+  }
+
+  // Действия — только админу (права по isAdmin, не по role)
+  if (account?.isAdmin) {
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    if (opts.pending) {
+      const ok = document.createElement('button');
+      ok.textContent = '✓ Одобрить';
+      ok.addEventListener('click', () => onModerate(g.id, 'approve'));
+      actions.appendChild(ok);
+      const no = document.createElement('button');
+      no.className = 'danger';
+      no.textContent = '✗ Отклонить';
+      no.addEventListener('click', () => onModerate(g.id, 'reject'));
+      actions.appendChild(no);
+    }
+    const del = document.createElement('button');
+    del.className = 'danger';
+    del.textContent = '🗑 Удалить';
+    del.addEventListener('click', () => onRemoveGame(g.id));
+    actions.appendChild(del);
+    body.appendChild(actions);
+  }
+
+  card.appendChild(body);
+  return card;
+}
+
+function renderGames(account) {
+  const screen = document.getElementById('screen-games');
+  if (!screen) return;
+  if (typeof GamesCatalog === 'undefined') {
+    screen.innerHTML = '<p class="empty-state">Каталог недоступен (games-catalog.js не загружен)</p>';
+    return;
+  }
+  GamesCatalog.load();
+  screen.innerHTML = '';
+
+  const h = document.createElement('h1');
+  h.textContent = 'Игры';
+  screen.appendChild(h);
+
+  // --- Официальные ---
+  const official = document.createElement('section');
+  const oh = document.createElement('h2');
+  oh.textContent = 'PRO.AI Games';
+  official.appendChild(oh);
+
+  const list = GamesCatalog.getOfficial();
+  if (!list.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty-state';
+    empty.textContent = 'Пока пусто';
+    official.appendChild(empty);
+  }
+  list.forEach(g => official.appendChild(gameCard(g, account)));
+
+  if (account?.isAdmin) {
+    const add = document.createElement('button');
+    add.className = 'btn btn-secondary';
+    add.style.marginTop = '8px';
+    add.textContent = '+ Добавить игру';
+    add.addEventListener('click', onAddOfficial);
+    official.appendChild(add);
+  }
+  screen.appendChild(official);
+
+  // --- Ученические ---
+  const student = document.createElement('section');
+  const sh = document.createElement('h2');
+  sh.textContent = 'Игры учеников';
+  student.appendChild(sh);
+
+  GamesCatalog.getStudentApproved().forEach(g => student.appendChild(gameCard(g, account)));
+
+  if (account?.isAdmin) {
+    const pending = GamesCatalog.getStudentPending();
+    if (pending.length) {
+      const ph = document.createElement('h3');
+      ph.textContent = 'На модерации (' + pending.length + ')';
+      ph.style.marginTop = '14px';
+      student.appendChild(ph);
+      pending.forEach(g => student.appendChild(gameCard(g, account, { pending: true })));
+    }
+  }
+
+  const propose = document.createElement('button');
+  propose.className = 'btn btn-secondary';
+  propose.style.marginTop = '8px';
+  propose.textContent = 'Предложить свою игру';
+  propose.addEventListener('click', onProposeGame);
+  student.appendChild(propose);
+
+  screen.appendChild(student);
+}
+
 /* ---------- Нижняя навигация ---------- */
 
 const NAV_TABS = [
   { id: 'lobby',    label: 'Лобби',    render: renderLobby },
-  { id: 'games',    label: 'Игры',     render: null },  // games-catalog.js — следующий модуль
-  { id: 'learn',    label: 'Обучение', render: null },  // learn.js
+  { id: 'games',    label: 'Игры',     render: renderGames },
+  { id: 'learn',    label: 'Обучение', render: null },  // learn.js — следующий модуль
   { id: 'chat',     label: 'Чат',      render: null },  // chat.js
   { id: 'settings', label: 'Ещё',      render: null }
 ];
@@ -172,23 +380,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* ---------- Старт ---------- */
 
+function offlineSession(reason) {
+  return {
+    account: { offline: true, isAdmin: false, role: 'guest', name: null, uid: null },
+    migration: { deferred: true, reason }
+  };
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (window.initSplash) initSplash();
 
-  let session;
-  try {
-    session = await initAccount();
-  } catch (e) {
-    console.warn('[app] initAccount упал, стартуем в оффлайне:', e);
-    session = {
-      account: { offline: true, isAdmin: false, role: 'guest', name: null, uid: null },
-      migration: { deferred: true, reason: 'crash' }
-    };
-  }
-  setSessionAccount(session.account);
-  setSessionMigration(session.migration);
+  const sessionPromise = (async () => {
+    try { return await initAccount(); }
+    catch (e) {
+      console.warn('[app] initAccount упал, стартуем в оффлайне:', e);
+      return offlineSession('crash');
+    }
+  })();
 
   await splashWait();
+
+  let session = await Promise.race([
+    sessionPromise,
+    new Promise(r => setTimeout(() => r(null), 3000))
+  ]);
+
+  if (!session) {
+    session = offlineSession('timeout');
+    showToast('Медленное соединение — загрузка профиля продолжается');
+    sessionPromise.then(s => {
+      if (!s) return;
+      setSessionAccount(s.account);
+      setSessionMigration(s.migration);
+      renderTabbar();
+      switchTab('lobby');
+      if (s.account.offline) showToast('Нет сети — показана сохранённая копия профиля');
+    });
+  } else {
+    setSessionAccount(session.account);
+    setSessionMigration(session.migration);
+  }
 
   renderTabbar();
   switchTab('lobby');
