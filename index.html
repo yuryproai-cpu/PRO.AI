@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>PRO.AI</title>
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
   <div id="splash"><img src="logo.png" alt="PRO.AI"></div>
@@ -17,7 +17,10 @@
           <input class="avatar-input" type="file" accept="image/*" hidden>
         </label>
         <div class="profile-text">
-          <span class="profile-name"></span>
+          <div class="profile-name-row">
+            <span class="profile-name"></span>
+            <span class="profile-role-badge" hidden></span>
+          </div>
           <button class="profile-name-edit" hidden>✎ Указать имя</button>
           <p class="profile-bio"></p>
         </div>
@@ -31,11 +34,14 @@
 
   <nav id="tabbar"></nav>
 
-  <!-- SDK Firebase грузит js/firebase.js динамически — gstatic-теги не нужны -->
-  <script src="js/firebase.js?v=15"></script>
-  <script src="js/logo.js?v=15"></script>
-  <script src="js/account.js?v=15"></script>
-  <script src="js/games-catalog.js?v=15"></script>
-  <script src="js/app.js?v=15"></script>
+  <!-- Telegram Mini App SDK — БЕЗ него приложение не знает Telegram ID -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- SDK Firebase грузит js/firebase.js динамически -->
+  <script src="js/firebase.js?v=16"></script>
+  <script src="js/logo.js?v=16"></script>
+  <script src="js/account.js?v=16"></script>
+  <script src="js/games-catalog.js?v=16"></script>
+  <script src="js/app.js?v=16"></script>
 </body>
 </html>
