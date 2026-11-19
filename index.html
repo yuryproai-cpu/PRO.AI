@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>PRO.AI</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
   <style>
     /* ===== Прокрутка и отступ от нижнего меню ===== */
     .screen {
@@ -126,18 +126,48 @@
       background: #1c2938; border: 1px solid #2c3d52;
       border-radius: 12px; padding: 10px 12px; margin: 8px 0;
       max-width: 85%; word-wrap: break-word;
+      direction: ltr !important;
+      unicode-bidi: normal !important;
+      text-align: left !important;
     }
     .chat-msg.mine {
       margin-left: auto; background: #16301f; border-color: #3f8a50;
     }
+    .chat-msg .chat-meta,
+    .chat-msg .txt {
+      direction: ltr !important;
+      unicode-bidi: plaintext !important;
+      text-align: left !important;
+    }
     .chat-meta { font-size: 11px; opacity: 0.6; margin-bottom: 4px; }
     .chat-msg .txt { font-size: 15px; line-height: 1.4; }
-    .chat-input-row { display: flex; gap: 8px; margin-top: 10px; }
-    .chat-input-row input { flex: 1 1 auto !important; margin: 0 !important; }
+    .chat-input-row {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: stretch;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .chat-input-row input {
+      flex: 1 1 auto !important;
+      width: auto !important;
+      min-width: 0 !important;
+      margin: 0 !important;
+      display: inline-block !important;
+      direction: ltr !important;
+      unicode-bidi: normal !important;
+    }
     .chat-input-row button {
-      flex: 0 0 auto; padding: 12px 18px; font-size: 16px;
+      flex: 0 0 auto !important;
+      width: auto !important;
+      min-width: 70px !important;
+      padding: 12px 18px !important;
+      font-size: 16px;
       border-radius: 10px; border: 1px solid #3f8a50;
       background: #2f6e3c; color: #fff;
+      margin: 0 !important;
+      display: inline-block !important;
+      position: static !important;
     }
     /* ===== Чтение урока: защита от копирования ===== */
     #lesson-body {
@@ -196,7 +226,7 @@
   <!-- ========== ЭКРАН: ФОРМА ИГРЫ ========== -->
   <section id="screen-game-form" class="screen hidden">
     <button class="btn-back" data-target="screen-games">⬅ Назад</button>
-    <h1 id="gf-heading">Новая игра</h1>
+    <h1 id="gf-heading">Нueva игра</h1>
     <p class="form-note" id="gf-note"></p>
 
     <label class="form-label" for="gf-title">Название игры</label>
@@ -382,13 +412,13 @@
 
   <div id="toast"></div>
 
-  <script src="js/account.js?v=6"></script>
-  <script src="js/games-catalog.js?v=6"></script>
-  <script src="js/learn.js?v=6"></script>
-  <script src="js/firebase.js?v=6"></script>
-  <script src="js/chat.js?v=6"></script>
-  <script src="js/avatar-editor.js?v=6"></script>
-  <script src="js/logo.js?v=6"></script>
-  <script src="js/app.js?v=6"></script>
+  <script src="js/account.js?v=7"></script>
+  <script src="js/games-catalog.js?v=7"></script>
+  <script src="js/learn.js?v=7"></script>
+  <script src="js/firebase.js?v=7"></script>
+  <script src="js/chat.js?v=7"></script>
+  <script src="js/avatar-editor.js?v=7"></script>
+  <script src="js/logo.js?v=7"></script>
+  <script src="js/app.js?v=7"></script>
 </body>
 </html>
