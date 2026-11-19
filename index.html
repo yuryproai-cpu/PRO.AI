@@ -4,242 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>PRO.AI</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
+  <div id="splash"><img src="logo.png" alt="PRO.AI"></div>
 
-  <!-- ===== Сплэш-экран с логотипом ===== -->
-  <div id="splash" class="active">
-    <img id="logo" src="logo.png?v=9" alt="PRO.AI">
-  </div>
+  <main id="app">
+    <section id="screen-lobby" class="screen">
+      <div class="profile-card">
+        <label class="profile-avatar">
+          <img alt="Аватар">
+          <input class="avatar-input" type="file" accept="image/*" hidden>
+        </label>
+        <div class="profile-text">
+          <span class="profile-name"></span>
+          <button class="profile-name-edit" hidden>✎ Указать имя</button>
+          <p class="profile-bio"></p>
+        </div>
+      </div>
+    </section>
+    <section id="screen-games" class="screen" hidden></section>
+    <section id="screen-learn" class="screen" hidden></section>
+    <section id="screen-chat" class="screen" hidden></section>
+    <section id="screen-settings" class="screen" hidden></section>
+  </main>
 
-  <!-- ========== ЭКРАН: ВХОД (только для браузера; из Telegram — авто-вход) ========== -->
-  <section id="screen-auth" class="screen">
-    <h1>PRO.AI</h1>
-    <p class="stub-text">Платформа игр. Вход через аккаунт.</p>
-    <button id="btn-auth-telegram">Войти через Telegram</button>
-    <button id="btn-auth-google">Войти через Google</button>
-  </section>
+  <nav id="tabbar"></nav>
 
-  <!-- ========== ЭКРАН: ЛОББИ ========== -->
-  <section id="screen-lobby" class="screen hidden">
-    <div class="profile-card">
-      <div id="lobby-avatar" class="avatar-big"></div>
-      <h2 id="lobby-name"></h2>
-      <p class="provider-note" id="lobby-provider"></p>
-    </div>
-    <div class="hub-menu">
-      <button id="btn-games">🎮 Игры</button>
-      <button id="btn-learn">🎓 Обучение</button>
-      <button id="btn-rules">📜 Правила</button>
-      <button id="btn-chats">💬 Чаты</button>
-      <button id="btn-forum">📖 Форум</button>
-    </div>
-  </section>
-
-  <!-- ========== ЭКРАН: ВИТРИНА ИГР ========== -->
-  <section id="screen-games" class="screen hidden">
-    <h1>🎮 Игры</h1>
-    <div id="games-content"></div>
-  </section>
-
-  <!-- ========== ЭКРАН: ФОРМА ИГРЫ ========== -->
-  <section id="screen-game-form" class="screen hidden">
-    <button class="btn-back" data-target="screen-games">⬅ Назад</button>
-    <h1 id="gf-heading">Новая игра</h1>
-    <p class="form-note" id="gf-note"></p>
-
-    <label class="form-label" for="gf-title">Название игры</label>
-    <input type="text" id="gf-title" maxlength="40">
-
-    <label class="form-label" for="gf-icon">Иконка — эмодзи</label>
-    <input type="text" id="gf-icon" placeholder="🎮" maxlength="4">
-
-    <label class="form-label" for="gf-desc">Краткое описание</label>
-    <input type="text" id="gf-desc" maxlength="120">
-
-    <label class="form-label" for="gf-tg">Ссылка на Telegram (можно позже)</label>
-    <input type="text" id="gf-tg" maxlength="120">
-
-    <label class="form-label" for="gf-market">Ссылка на Google Play (можно позже)</label>
-    <input type="text" id="gf-market" maxlength="120">
-
-    <button id="btn-gf-submit">Отправить</button>
-  </section>
-
-  <!-- ========== ЭКРАН: СПИСОК КАНАЛОВ ========== -->
-  <section id="screen-chats" class="screen hidden">
-    <h1>💬 Чаты</h1>
-    <div id="chats-content"></div>
-  </section>
-
-  <!-- ========== ЭКРАН: КОМНАТА ЧАТА ========== -->
-  <section id="screen-chat-room" class="screen hidden">
-    <button class="btn-back" id="btn-chat-back" data-target="screen-chats">⬅ К каналам</button>
-    <h1 id="chat-title"></h1>
-    <div id="chat-messages"></div>
-    <div class="chat-input-row">
-      <input type="text" id="chat-input" placeholder="Сообщение..." maxlength="500">
-      <button id="btn-chat-send">➤</button>
-    </div>
-  </section>
-
-  <!-- ========== ЭКРАН: ОБУЧЕНИЕ ========== -->
-  <section id="screen-learn" class="screen hidden">
-    <h1>🎓 Обучение</h1>
-    <div id="learn-content"></div>
-  </section>
-
-  <!-- ========== ЭКРАН: ЧТЕНИЕ УРОКА ========== -->
-  <section id="screen-lesson" class="screen hidden">
-    <button class="btn-back" data-target="screen-learn">⬅ К урокам</button>
-    <h1 id="lesson-title"></h1>
-    <div id="lesson-video"></div>
-    <div id="lesson-wrap">
-      <div id="lesson-body"></div>
-      <div id="watermark"></div>
-    </div>
-  </section>
-
-  <!-- ========== ЭКРАН: ПАНЕЛЬ АДМИНА ========== -->
-  <section id="screen-admin" class="screen hidden">
-    <button class="btn-back" data-target="screen-settings">⬅ Назад</button>
-    <h1>🛡 Панель админа</h1>
-    <p class="form-note">Тестовый режим: роли и тарифы выдаются себе.
-    В боевой версии это делает сервер по вашему решению.</p>
-    <div id="admin-roles">
-      <button class="btn-mini" data-role="guest">Гость</button>
-      <button class="btn-mini" data-role="student">Ученик</button>
-      <button class="btn-mini" data-role="developer">Разработчик</button>
-      <button class="btn-mini" data-role="admin">Админ</button>
-    </div>
-    <p class="provider-note" id="admin-current-role"></p>
-
-    <div class="section-title">Тариф обучения</div>
-    <div id="admin-learn-tariff">
-      <button class="btn-mini" data-tariff="">Нет</button>
-      <button class="btn-mini" data-tariff="book">Книга</button>
-      <button class="btn-mini" data-tariff="video">Видео</button>
-      <button class="btn-mini" data-tariff="pro">PRO</button>
-    </div>
-    <p class="provider-note" id="admin-current-tariff"></p>
-
-    <div class="section-title">Разделы управления</div>
-    <button id="btn-admin-learn">📚 Редактор обучения</button>
-  </section>
-
-  <!-- ========== ЭКРАН: РЕДАКТОР ОБУЧЕНИЯ (АДМИН) ========== -->
-  <section id="screen-admin-learn" class="screen hidden">
-    <button class="btn-back" data-target="screen-admin">⬅ Назад</button>
-    <h1>📚 Редактор обучения</h1>
-    <div class="section-title">Заявки «Хочу учиться»</div>
-    <div id="learn-requests"></div>
-    <div class="section-title">Тарифы</div>
-    <div id="tariffs-admin"></div>
-    <button id="btn-add-tariff" class="btn-mini green">+ Добавить тариф</button>
-    <div class="section-title">Уроки</div>
-    <div id="lessons-admin"></div>
-    <button id="btn-add-lesson" class="btn-mini green">+ Добавить урок</button>
-  </section>
-
-  <!-- ========== ЭКРАН: ФОРМА ТАРИФА (АДМИН) ========== -->
-  <section id="screen-tariff-form" class="screen hidden">
-    <button class="btn-back" data-target="screen-admin-learn">⬅ Назад</button>
-    <h1 id="tf-heading">Тариф</h1>
-
-    <label class="form-label" for="tf-name">Название тарифа</label>
-    <input type="text" id="tf-name" maxlength="20">
-
-    <label class="form-label" for="tf-level">Уровень доступа (что открывает тариф)</label>
-    <select id="tf-level">
-      <option value="book">Книга — весь курс текстом</option>
-      <option value="video">Видео — книга + видеоуроки</option>
-      <option value="pro">PRO — всё + сотрудничество</option>
-    </select>
-
-    <label class="form-label" for="tf-price">Цена, ₽</label>
-    <input type="number" id="tf-price" min="0">
-
-    <label class="form-label" for="tf-desc">Что входит в тариф (описание на витрине)</label>
-    <input type="text" id="tf-desc" maxlength="120">
-
-    <label class="form-label" for="tf-discount">Скидка, % (0 — без скидки)</label>
-    <input type="number" id="tf-discount" min="0" max="90">
-
-    <label class="form-label" for="tf-days">Срок скидки, дней (0 — бессрочно)</label>
-    <input type="number" id="tf-days" min="0">
-
-    <button id="btn-tf-submit">Сохранить тариф</button>
-  </section>
-
-  <!-- ========== ЭКРАН: ФОРМА УРОКА (АДМИН) ========== -->
-  <section id="screen-lesson-form" class="screen hidden">
-    <button class="btn-back" data-target="screen-admin-learn">⬅ Назад</button>
-    <h1 id="lf-heading">Урок</h1>
-
-    <label class="form-label" for="lf-title">Заголовок урока</label>
-    <input type="text" id="lf-title" maxlength="60">
-
-    <label class="form-label" for="lf-level">Кому виден урок</label>
-    <select id="lf-level">
-      <option value="free">Всем (вводный урок / вкусняшка)</option>
-      <option value="book">Тариф «Книга» и выше</option>
-      <option value="video">Тариф «Видео» и выше</option>
-      <option value="pro">Только тариф «PRO»</option>
-    </select>
-
-    <label class="form-label" for="lf-video">Ссылка на видео (необязательно)</label>
-    <input type="text" id="lf-video" maxlength="200">
-
-    <label class="form-label" for="lf-body">Текст урока</label>
-    <textarea id="lf-body"></textarea>
-
-    <button id="btn-lf-submit">Сохранить урок</button>
-  </section>
-
-  <!-- ========== ЭКРАН: ПРАВИЛА (ЗАГЛУШКА) ========== -->
-  <section id="screen-rules" class="screen hidden">
-    <button class="btn-back" data-target="screen-lobby">⬅ На главную</button>
-    <h1>📜 Правила</h1>
-    <p class="stub-text">Раздел правил в разработке.</p>
-  </section>
-
-  <!-- ========== ЭКРАН: ФОРУМ (ЗАГЛУШКА) ========== -->
-  <section id="screen-forum" class="screen hidden">
-    <h1>📖 Форум</h1>
-    <p class="stub-text">Модуль форума в разработке.</p>
-  </section>
-
-  <!-- ========== ЭКРАН: НАСТРОЙКИ ========== -->
-  <section id="screen-settings" class="screen hidden">
-    <h1>⚙️ Настройки</h1>
-    <button id="btn-change-avatar">Сменить фото профиля</button>
-    <input type="file" id="avatar-input" accept="image/*" class="hidden">
-    <input type="text" id="settings-name" placeholder="Имя игрока (необязательно)" maxlength="20">
-    <button id="btn-save-name">Сохранить имя</button>
-    <button id="btn-admin-panel" class="hidden">🛡 Панель админа</button>
-    <button id="btn-reset" class="danger">Удалить аккаунт</button>
-  </section>
-
-  <!-- Нижняя навигация -->
-  <nav id="tabbar" class="hidden">
-    <button data-tab="screen-lobby" class="active">🏠</button>
-    <button data-tab="screen-games">🎮</button>
-    <button data-tab="screen-chats">💬</button>
-    <button data-tab="screen-forum">📖</button>
-    <button data-tab="screen-settings">⚙️</button>
-  </nav>
-
-  <div id="toast"></div>
-
-  <script src="js/account.js?v=10"></script>
-  <script src="js/games-catalog.js?v=10"></script>
-  <script src="js/learn.js?v=10"></script>
-  <script src="js/firebase.js?v=10"></script>
-  <script src="js/chat.js?v=10"></script>
-  <script src="js/avatar-editor.js?v=10"></script>
-  <script src="js/logo.js?v=10"></script>
-  <script src="js/app.js?v=10"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase.js?v=12"></script>
+  <script src="js/logo.js?v=12"></script>
+  <script src="js/account.js?v=12"></script>
+  <script src="js/app.js?v=12"></script>
 </body>
 </html>

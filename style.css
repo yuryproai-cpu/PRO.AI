@@ -242,3 +242,20 @@ button.danger { background: #5a2f2f; border-color: #8a3f3f; }
   opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 50;
 }
 #toast.show { opacity: 1; }
+/* Тост (offline-уведомление) */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 76px;
+  transform: translateX(-50%);
+  max-width: 90%;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+  z-index: 1000;
+  transition: opacity 0.3s;
+}
+#toast[hidden] { display: none; }
