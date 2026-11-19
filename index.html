@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>PRO.AI</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
   <style>
     /* ===== Прокрутка и отступ от нижнего меню ===== */
     .screen {
@@ -32,15 +32,13 @@
     /* ===== Сплэш-экран с логотипом ===== */
     #splash {
       position: fixed; inset: 0; z-index: 200;
-      background: #000;               /* чёрный фон сливается с логотипом */
+      background: #000;
       display: flex; align-items: center; justify-content: center;
       transition: opacity 1s;
       max-width: none;
     }
     #splash.active { display: flex; }
-    #logo {
-      width: min(60vw, 260px); height: auto;
-    }
+    #logo { width: min(60vw, 260px); height: auto; }
     #logo.play { animation: logo-pulse 1.2s ease-in-out infinite; }
     @keyframes logo-pulse {
       0%, 100% { transform: scale(1); opacity: 0.85; }
@@ -101,7 +99,7 @@
     .btn-mini.red { background: #6e2f2f; border-color: #8a3f3f; }
     .empty-note { font-size: 13px; opacity: 0.6; }
     .form-note { font-size: 13px; opacity: 0.7; margin-bottom: 10px; }
-    /* ===== Строки списков (заявки, тарифы, уроки) ===== */
+    /* ===== Строки списков (каналы, заявки, тарифы, уроки) ===== */
     .lesson-item {
       display: flex !important;
       align-items: center !important;
@@ -123,6 +121,24 @@
     .price-old { text-decoration: line-through; opacity: 0.5; margin-right: 8px; }
     .discount-badge { color: #ffd66e; font-size: 13px; margin: 4px 0; }
     .tariff-desc { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
+    /* ===== Чат ===== */
+    .chat-msg {
+      background: #1c2938; border: 1px solid #2c3d52;
+      border-radius: 12px; padding: 10px 12px; margin: 8px 0;
+      max-width: 85%; word-wrap: break-word;
+    }
+    .chat-msg.mine {
+      margin-left: auto; background: #16301f; border-color: #3f8a50;
+    }
+    .chat-meta { font-size: 11px; opacity: 0.6; margin-bottom: 4px; }
+    .chat-msg .txt { font-size: 15px; line-height: 1.4; }
+    .chat-input-row { display: flex; gap: 8px; margin-top: 10px; }
+    .chat-input-row input { flex: 1 1 auto !important; margin: 0 !important; }
+    .chat-input-row button {
+      flex: 0 0 auto; padding: 12px 18px; font-size: 16px;
+      border-radius: 10px; border: 1px solid #3f8a50;
+      background: #2f6e3c; color: #fff;
+    }
     /* ===== Чтение урока: защита от копирования ===== */
     #lesson-body {
       user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
@@ -143,7 +159,7 @@
 
   <!-- ===== Сплэш-экран с логотипом ===== -->
   <div id="splash" class="active">
-    <img id="logo" src="logo.png?v=5" alt="PRO.AI">
+    <img id="logo" src="logo.png?v=6" alt="PRO.AI">
   </div>
 
   <!-- ========== ЭКРАН: ВХОД (ЗАГЛУШКА / АДМИН) ========== -->
@@ -199,6 +215,23 @@
     <input type="text" id="gf-market" maxlength="120">
 
     <button id="btn-gf-submit">Отправить</button>
+  </section>
+
+  <!-- ========== ЭКРАН: СПИСОК КАНАЛОВ ========== -->
+  <section id="screen-chats" class="screen hidden">
+    <h1>💬 Чаты</h1>
+    <div id="chats-content"></div>
+  </section>
+
+  <!-- ========== ЭКРАН: КОМНАТА ЧАТА ========== -->
+  <section id="screen-chat-room" class="screen hidden">
+    <button class="btn-back" id="btn-chat-back" data-target="screen-chats">⬅ К каналам</button>
+    <h1 id="chat-title"></h1>
+    <div id="chat-messages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Сообщение..." maxlength="500">
+      <button id="btn-chat-send">➤</button>
+    </div>
   </section>
 
   <!-- ========== ЭКРАН: ОБУЧЕНИЕ ========== -->
@@ -321,12 +354,6 @@
     <p class="stub-text">Раздел правил в разработке.</p>
   </section>
 
-  <!-- ========== ЭКРАН: ЧАТЫ (ЗАГЛУШКА) ========== -->
-  <section id="screen-chats" class="screen hidden">
-    <h1>💬 Чаты</h1>
-    <p class="stub-text">Модуль чатов в разработке.</p>
-  </section>
-
   <!-- ========== ЭКРАН: ФОРУМ (ЗАГЛУШКА) ========== -->
   <section id="screen-forum" class="screen hidden">
     <h1>📖 Форум</h1>
@@ -355,11 +382,13 @@
 
   <div id="toast"></div>
 
-  <script src="js/account.js?v=5"></script>
-  <script src="js/games-catalog.js?v=5"></script>
-  <script src="js/learn.js?v=5"></script>
-  <script src="js/avatar-editor.js?v=5"></script>
-  <script src="js/logo.js?v=5"></script>
-  <script src="js/app.js?v=5"></script>
+  <script src="js/account.js?v=6"></script>
+  <script src="js/games-catalog.js?v=6"></script>
+  <script src="js/learn.js?v=6"></script>
+  <script src="js/firebase.js?v=6"></script>
+  <script src="js/chat.js?v=6"></script>
+  <script src="js/avatar-editor.js?v=6"></script>
+  <script src="js/logo.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
 </body>
 </html>
