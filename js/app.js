@@ -1,8 +1,8 @@
 /* ============================================================
-   PRO.AI · js/app.js — v0.2.6
-   + вкладка «Игры»: подключение games-catalog.js (каталоги,
-   добавление/удаление для админа, модерация игр учеников).
-   Остальное — как в v0.2.5.
+   PRO.AI · js/app.js — v0.2.7
+   + telegram-web-app.js интеграция (ready/expand)
+   + бейдж «Админ» в лобби
+   + вкладка «Ещё»: диагностика (uid, вход, роль, сервер) и админ-раздел
    ============================================================ */
 
 'use strict';
@@ -89,10 +89,21 @@ function renderLobby(account) {
   const bioEl = lobby.querySelector('.profile-bio');
   const avatarEl = lobby.querySelector('.profile-avatar img');
   const editNameBtn = lobby.querySelector('.profile-name-edit');
+  const badgeEl = lobby.querySelector('.profile-role-badge');
 
   if (nameEl) nameEl.textContent = displayNameOf(account);
   if (bioEl) bioEl.textContent = account.bio || '';
   if (editNameBtn) editNameBtn.hidden = !!account.name;
+
+  if (badgeEl) {
+    if (account.isAdmin) {
+      badgeEl.textContent = 'Админ';
+      badgeEl.className = 'profile-role-badge badge badge-admin';
+      badgeEl.hidden = false;
+    } else {
+      badgeEl.hidden = true;
+    }
+  }
 
   if (avatarEl) {
     avatarEl.src = AVATAR_PLACEHOLDER;
@@ -137,7 +148,7 @@ async function onChangeAvatar(file) {
 }
 
 /* ============================================================
-   Вкладка «Игры» (модуль GamesCatalog из js/games-catalog.js)
+   Вкладка «Игры» (GamesCatalog)
    ============================================================ */
 
 function askGameFields(includeAuthor) {
@@ -222,26 +233,17 @@ function gameCard(g, account, opts = {}) {
   if (g.linkTelegram || g.linkMarket) {
     const links = document.createElement('div');
     links.className = 'card-links';
-    if (g.linkTelegram) {
+    const mk = (href, label) => {
       const a = document.createElement('a');
-      a.href = g.linkTelegram;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.textContent = 'Открыть в Telegram';
+      a.href = href; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = label;
       links.appendChild(a);
-    }
-    if (g.linkMarket) {
-      const a = document.createElement('a');
-      a.href = g.linkMarket;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.textContent = 'Маркет';
-      links.appendChild(a);
-    }
+    };
+    if (g.linkTelegram) mk(g.linkTelegram, 'Открыть в Telegram');
+    if (g.linkMarket) mk(g.linkMarket, 'Маркет');
     body.appendChild(links);
   }
 
-  // Действия — только админу (права по isAdmin, не по role)
   if (account?.isAdmin) {
     const actions = document.createElement('div');
     actions.className = 'card-actions';
@@ -282,7 +284,6 @@ function renderGames(account) {
   h.textContent = 'Игры';
   screen.appendChild(h);
 
-  // --- Официальные ---
   const official = document.createElement('section');
   const oh = document.createElement('h2');
   oh.textContent = 'PRO.AI Games';
@@ -307,7 +308,6 @@ function renderGames(account) {
   }
   screen.appendChild(official);
 
-  // --- Ученические ---
   const student = document.createElement('section');
   const sh = document.createElement('h2');
   sh.textContent = 'Игры учеников';
@@ -336,14 +336,93 @@ function renderGames(account) {
   screen.appendChild(student);
 }
 
+/* ============================================================
+   Вкладка «Ещё»: диагностика + админ-раздел
+   ============================================================ */
+
+function diagRow(label, value) {
+  const row = document.createElement('div');
+  row.className = 'diag-row';
+  const l = document.createElement('span');
+  l.textContent = label;
+  const v = document.createElement('b');
+  v.textContent = value;
+  row.appendChild(l);
+  row.appendChild(v);
+  return row;
+}
+
+function renderSettings(account) {
+  const screen = document.getElementById('screen-settings');
+  if (!screen) return;
+  screen.innerHTML = '';
+
+  const h = document.createElement('h1');
+  h.textContent = 'Ещё';
+  screen.appendChild(h);
+
+  // --- Диагностика: чтобы больше не гадать, кого видит приложение ---
+  const diag = document.createElement('div');
+  diag.className = 'card';
+  diag.style.display = 'block';
+  const dt = document.createElement('div');
+  dt.className = 'card-title';
+  dt.textContent = 'Диагностика';
+  diag.appendChild(dt);
+
+  const inTelegram = !!(window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe?.user);
+  diag.appendChild(diagRow('Открыто в Telegram', inTelegram ? 'да' : 'НЕТ — открой ссылку в Telegram'));
+  diag.appendChild(diagRow('Твой ID (uid)', account.uid || '—'));
+  diag.appendChild(diagRow('Способ входа', account.loginType || '—'));
+  diag.appendChild(diagRow('Роль', account.role || '—'));
+  diag.appendChild(diagRow('Админ', account.isAdmin ? 'да' : 'нет'));
+  diag.appendChild(diagRow('Сервер', account.offline ? 'нет связи' : 'подключен'));
+  screen.appendChild(diag);
+
+  // --- Админ-раздел ---
+  if (account.isAdmin) {
+    const admin = document.createElement('div');
+    admin.className = 'card';
+    admin.style.display = 'block';
+    const at = document.createElement('div');
+    at.className = 'card-title';
+    at.textContent = 'Админка';
+    admin.appendChild(at);
+    const ul = document.createElement('ul');
+    ul.className = 'muted';
+    ul.style.paddingLeft = '20px';
+    ['Модерация игр — вкладка «Игры»',
+     'Модерация чата — вкладка «Чат» (когда подключим)',
+     'Курсы и тарифы — вкладка «Обучение» (когда подключим)'].forEach(t => {
+      const li = document.createElement('li');
+      li.textContent = t;
+      ul.appendChild(li);
+    });
+    admin.appendChild(ul);
+    screen.appendChild(admin);
+  } else if (inTelegram) {
+    const note = document.createElement('p');
+    note.className = 'muted';
+    note.textContent = 'Админ-права выдаются по Telegram ID владельца. Если ты владелец и видишь «нет» — пришли мне скриншот этого экрана.';
+    screen.appendChild(note);
+  }
+
+  if (account.offline) {
+    const warn = document.createElement('p');
+    warn.className = 'muted';
+    warn.textContent = 'Сервер недоступен. Данные загружены из сохранённой копии; изменения уйдут в облако при появлении сети.';
+    screen.appendChild(warn);
+  }
+}
+
 /* ---------- Нижняя навигация ---------- */
 
 const NAV_TABS = [
   { id: 'lobby',    label: 'Лобби',    render: renderLobby },
   { id: 'games',    label: 'Игры',     render: renderGames },
-  { id: 'learn',    label: 'Обучение', render: null },  // learn.js — следующий модуль
-  { id: 'chat',     label: 'Чат',      render: null },  // chat.js
-  { id: 'settings', label: 'Ещё',      render: null }
+  { id: 'learn',    label: 'Обучение', render: null },
+  { id: 'chat',     label: 'Чат',      render: null },
+  { id: 'settings', label: 'Ещё',      render: renderSettings }
 ];
 
 function renderTabbar() {
@@ -388,6 +467,11 @@ function offlineSession(reason) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Telegram Mini App: сообщаем платформе, что готовы
+  if (window.Telegram && Telegram.WebApp) {
+    try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {}
+  }
+
   if (window.initSplash) initSplash();
 
   const sessionPromise = (async () => {
