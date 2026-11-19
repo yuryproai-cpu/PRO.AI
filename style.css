@@ -1,31 +1,99 @@
+/* ====================================================
+   PRO.AI — единая таблица стилей платформы
+   База: оригинальные стили + все модули (лобби, игры,
+   обучение, чат, сплэш). Конфликты устранены.
+   ==================================================== */
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
 html, body { height: 100%; }
+
 body {
   font-family: sans-serif;
   background: #12181f; color: #eee; font-size: 16px;
   padding-bottom: 64px; /* место под нижнюю навигацию */
+  direction: ltr;       /* защита от случайного RTL-наследования */
 }
+
 #app, .screen { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+.screen { overflow-y: auto; padding-bottom: 90px; }
+
 .hidden { display: none !important; }
+
 h1 { text-align: center; margin: 24px 0 8px; }
 h2 { margin: 20px 0 12px; }
-.hint { text-align: center; color: #9ab; font-size: 14px; margin-bottom: 16px; }
-.stub { color: #9ab; line-height: 1.6; background: #1a232e;
-  border: 1px dashed #33445a; border-radius: 10px; padding: 16px; }
 
-.field {
-  display: block; width: 100%; margin: 10px 0; padding: 14px;
+.hint { text-align: center; color: #9ab; font-size: 14px; margin-bottom: 16px; }
+
+.stub {
+  color: #9ab; line-height: 1.6; background: #1a232e;
+  border: 1px dashed #33445a; border-radius: 10px; padding: 16px;
+}
+.stub-text { color: #9ab; line-height: 1.6; margin-bottom: 12px; }
+
+/* ===== Поля форм: всегда на всю ширину, в столбик ===== */
+
+.field,
+section.screen input,
+section.screen select,
+section.screen textarea {
+  display: block; width: 100%;
+  margin: 10px 0; padding: 14px;
   background: #1a232e; color: #eee; border: 1px solid #33445a;
   border-radius: 10px; font-size: 16px;
 }
+
+.form-label {
+  display: block; font-size: 12px; opacity: 0.7; margin: 12px 0 0;
+}
+
+textarea { min-height: 120px; }
+
 button {
   display: block; width: 100%; margin: 10px 0; padding: 14px;
   font-size: 16px; color: #eee;
   background: #243244; border: 1px solid #3a4d66; border-radius: 10px;
 }
+
 button:active { background: #2d3f56; }
 button.primary { background: #2f6e3c; border-color: #3f8a50; }
 button.danger { background: #5a2f2f; border-color: #8a3f3f; }
+
+.btn-mini {
+  display: inline-block; width: auto;
+  padding: 8px 12px; font-size: 13px; border-radius: 8px;
+  border: 1px solid #3a4d66; background: #243244; color: #fff;
+  margin: 4px 6px 0 0;
+}
+.btn-mini.green { background: #2f6e3c; border-color: #3f8a50; }
+.btn-mini.red { background: #6e2f2f; border-color: #8a3f3f; }
+
+.btn-back {
+  display: block; width: 100%;
+  padding: 12px; font-size: 15px;
+  border-radius: 10px; border: 1px solid #3a4d66;
+  background: #243244; color: #fff; margin-bottom: 14px;
+}
+
+/* ===== Сплэш-экран с логотипом ===== */
+
+#splash {
+  position: fixed; inset: 0; z-index: 200;
+  background: #000; /* сливается с логотипом */
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 1s;
+  max-width: none;
+}
+#splash.active { display: flex; }
+#logo { width: min(60vw, 260px); height: auto; }
+#logo.play { animation: logo-pulse 1.2s ease-in-out infinite; }
+@keyframes logo-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.12); opacity: 1; }
+}
+
+/* ===== Профиль и лобби ===== */
 
 .avatar-big {
   width: 110px; height: 110px; margin: 16px auto; border-radius: 50%;
@@ -34,27 +102,132 @@ button.danger { background: #5a2f2f; border-color: #8a3f3f; }
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   color: #9ab; font-size: 30px; cursor: pointer;
+  overflow: hidden; flex: 0 0 auto;
 }
 .avatar-big span { font-size: 13px; }
 
+/* карточка профиля: аватар сверху, подписи под ним — колонкой */
 .profile-card {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
   background: #1a232e; border: 1px solid #33445a;
   border-radius: 14px; padding: 14px; margin: 16px 0;
+  max-width: 100%; overflow: hidden;
 }
-.profile-card .avatar-big { width: 72px; height: 72px; margin: 0; font-size: 22px; }
-.profile-card .avatar-big span { display: none; }
+.profile-card .avatar-big { width: 110px; height: 110px; margin: 0 auto; }
+
+#lobby-name {
+  display: block; width: 100%; max-width: 95%;
+  min-width: 0; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; box-sizing: border-box;
+  text-align: center;
+}
+
+.provider-note { text-align: center; font-size: 12px; opacity: 0.6; margin-top: 8px; }
+
 .nick { font-size: 18px; font-weight: bold; }
 .country { color: #9ab; font-size: 14px; }
 
-.menu-btn { display: flex; align-items: center; gap: 12px;
-  padding: 16px; font-size: 17px; }
+.menu-btn { display: flex; align-items: center; gap: 12px; padding: 16px; font-size: 17px; }
 .menu-btn.play { background: #2f6e3c; border-color: #3f8a50; }
+
+/* ===== Списки и карточки ===== */
+
+.section-title { margin: 16px 0 6px; font-size: 16px; font-weight: bold; }
+.empty-note { font-size: 13px; opacity: 0.6; }
+.form-note { font-size: 13px; opacity: 0.7; margin-bottom: 10px; }
+
+.lesson-item {
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid #2c3d52; border-radius: 10px;
+  padding: 12px; margin: 8px 0; background: #1c2938;
+  max-width: 100%;
+}
+.lesson-item .lt { flex: 1 1 auto; min-width: 0; font-size: 15px; }
+.lesson-item .lv { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+.lesson-item.locked { opacity: 0.55; }
+
+/* ===== Витрина игр ===== */
+
+.game-card {
+  border: 1px solid #2c3d52; border-radius: 12px;
+  padding: 12px; margin: 10px 0; background: #1c2938;
+  max-width: 100%; overflow: hidden;
+}
+.game-head { display: flex; align-items: center; gap: 10px; }
+.game-icon {
+  width: 56px; height: 56px; flex: 0 0 auto; border-radius: 10px;
+  background: #0e1620; display: flex; align-items: center;
+  justify-content: center; font-size: 30px;
+}
+.game-title { font-weight: bold; font-size: 17px; }
+.game-author { font-size: 12px; margin-top: 2px; }
+.badge-official { color: #6fd08c; }
+.badge-student { color: #e0c060; }
+.game-desc { font-size: 13px; opacity: 0.9; margin: 8px 0; }
+
+/* ===== Витрина тарифов обучения ===== */
+
+.tariff-card {
+  border: 1px solid #3f8a50; border-radius: 12px;
+  padding: 14px; margin: 10px 0; background: #16301f;
+}
+.tariff-name { font-weight: bold; font-size: 18px; }
+.tariff-price { font-size: 16px; margin: 6px 0; }
+.price-old { text-decoration: line-through; opacity: 0.5; margin-right: 8px; }
+.discount-badge { color: #ffd66e; font-size: 13px; margin: 4px 0; }
+.tariff-desc { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
+
+/* ===== Чат ===== */
+
+.chat-msg {
+  background: #1c2938; border: 1px solid #2c3d52;
+  border-radius: 12px; padding: 10px 12px; margin: 8px 0;
+  max-width: 85%; word-wrap: break-word;
+  direction: ltr; text-align: left;
+}
+.chat-msg.mine { margin-left: auto; background: #16301f; border-color: #3f8a50; }
+.chat-meta { font-size: 11px; opacity: 0.6; margin-bottom: 4px; }
+.chat-msg .txt { font-size: 15px; line-height: 1.4; }
+.chat-msg .chat-meta,
+.chat-msg .txt { unicode-bidi: plaintext; }
+
+.chat-input-row {
+  display: flex; flex-direction: row; align-items: stretch;
+  gap: 8px; margin-top: 10px;
+}
+.chat-input-row input {
+  flex: 1 1 auto; width: auto; min-width: 0; margin: 0;
+}
+.chat-input-row button {
+  flex: 0 0 auto; width: auto; min-width: 70px;
+  padding: 12px 18px; font-size: 16px;
+  border-radius: 10px; border: 1px solid #3f8a50;
+  background: #2f6e3c; color: #fff; margin: 0;
+}
+
+/* ===== Чтение урока: защита от копирования ===== */
+
+#lesson-body {
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  font-size: 15px; line-height: 1.6; white-space: pre-wrap;
+}
+#lesson-wrap { position: relative; overflow: hidden; }
+#watermark {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  transform: rotate(-25deg); font-size: 20px; font-weight: bold;
+  color: rgba(255,255,255,0.05); text-align: center;
+  word-break: break-all; padding: 20px;
+}
+
+/* ===== Нижняя навигация и тосты ===== */
 
 #tabbar {
   position: fixed; bottom: 0; left: 0; right: 0;
   max-width: 480px; margin: 0 auto;
   display: flex; background: #0d1319; border-top: 1px solid #33445a;
+  z-index: 100;
 }
 #tabbar button {
   margin: 0; padding: 12px 0; border: none; border-radius: 0;

@@ -5,191 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>PRO.AI</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=8">
-  <style>
-    /* ===== Прокрутка и отступ от нижнего меню ===== */
-    .screen {
-      overflow-y: auto !important;
-      padding-bottom: 90px !important;
-    }
-    /* ===== Все поля форм — на всю ширину, в столбик ===== */
-    section.screen input,
-    section.screen select,
-    section.screen textarea {
-      display: block !important;
-      width: 100% !important;
-      box-sizing: border-box;
-      margin: 8px 0;
-      padding: 12px;
-      font-size: 15px;
-    }
-    .form-label {
-      display: block;
-      font-size: 12px;
-      opacity: 0.7;
-      margin: 12px 0 0;
-    }
-    /* ===== Сплэш-экран с логотипом ===== */
-    #splash {
-      position: fixed; inset: 0; z-index: 200;
-      background: #000;
-      display: flex; align-items: center; justify-content: center;
-      transition: opacity 1s;
-      max-width: none;
-    }
-    #splash.active { display: flex; }
-    #logo { width: min(60vw, 260px); height: auto; }
-    #logo.play { animation: logo-pulse 1.2s ease-in-out infinite; }
-    @keyframes logo-pulse {
-      0%, 100% { transform: scale(1); opacity: 0.85; }
-      50%      { transform: scale(1.12); opacity: 1; }
-    }
-    /* ===== Карточка профиля ===== */
-    .profile-card {
-      display: flex !important; flex-direction: column !important;
-      align-items: center !important; text-align: center;
-      max-width: 100% !important; overflow: hidden;
-    }
-    .profile-card .avatar-big {
-      width: 110px !important; height: 110px !important; flex: 0 0 auto !important;
-      border-radius: 50% !important; background-size: cover !important;
-      background-position: center !important;
-      display: flex !important; align-items: center !important;
-      justify-content: center !important; overflow: hidden;
-    }
-    #lobby-name {
-      display: block !important; width: 100% !important; max-width: 95% !important;
-      min-width: 0 !important; white-space: nowrap !important;
-      overflow: hidden !important; text-overflow: ellipsis; box-sizing: border-box;
-    }
-    .provider-note { text-align: center; font-size: 12px; opacity: 0.6; margin-top: 8px; }
-    .btn-back {
-      display: block; width: 100%; padding: 12px; font-size: 15px;
-      border-radius: 10px; border: 1px solid #3a4d66;
-      background: #243244; color: #fff; margin-bottom: 14px;
-    }
-    /* ===== Списки и карточки ===== */
-    .section-title { margin: 16px 0 6px; font-size: 16px; font-weight: bold; }
-    .game-card {
-      border: 1px solid #2c3d52; border-radius: 12px;
-      padding: 12px; margin: 10px 0; background: #1c2938;
-      max-width: 100%; overflow: hidden;
-    }
-    .game-head { display: flex; align-items: center; gap: 10px; }
-    .game-icon {
-      width: 56px; height: 56px; flex: 0 0 auto; border-radius: 10px;
-      background: #0e1620; display: flex; align-items: center;
-      justify-content: center; font-size: 30px;
-    }
-    .game-title { font-weight: bold; font-size: 17px; }
-    .game-author { font-size: 12px; margin-top: 2px; }
-    .badge-official { color: #6fd08c; }
-    .badge-student { color: #e0c060; }
-    .game-desc { font-size: 13px; opacity: 0.9; margin: 8px 0; }
-    .btn-mini {
-      padding: 8px 12px; font-size: 13px; border-radius: 8px;
-      border: 1px solid #3a4d66; background: #243244; color: #fff;
-      margin: 4px 6px 0 0;
-      display: inline-block !important;
-      width: auto !important;
-      position: static !important;
-      flex: 0 0 auto !important;
-    }
-    .btn-mini.green { background: #2f6e3c; border-color: #3f8a50; }
-    .btn-mini.red { background: #6e2f2f; border-color: #8a3f3f; }
-    .empty-note { font-size: 13px; opacity: 0.6; }
-    .form-note { font-size: 13px; opacity: 0.7; margin-bottom: 10px; }
-    /* ===== Строки списков (каналы, заявки, тарифы, уроки) ===== */
-    .lesson-item {
-      display: flex !important;
-      align-items: center !important;
-      gap: 10px;
-      border: 1px solid #2c3d52; border-radius: 10px;
-      padding: 12px; margin: 8px 0; background: #1c2938;
-      max-width: 100%;
-    }
-    .lesson-item .lt { flex: 1 1 auto !important; min-width: 0; font-size: 15px; }
-    .lesson-item .lv { font-size: 11px; opacity: 0.6; margin-top: 2px; }
-    .lesson-item.locked { opacity: 0.55; }
-    /* ===== Витрина тарифов ===== */
-    .tariff-card {
-      border: 1px solid #3f8a50; border-radius: 12px;
-      padding: 14px; margin: 10px 0; background: #16301f;
-    }
-    .tariff-name { font-weight: bold; font-size: 18px; }
-    .tariff-price { font-size: 16px; margin: 6px 0; }
-    .price-old { text-decoration: line-through; opacity: 0.5; margin-right: 8px; }
-    .discount-badge { color: #ffd66e; font-size: 13px; margin: 4px 0; }
-    .tariff-desc { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
-    /* ===== Чат ===== */
-    .chat-msg {
-      background: #1c2938; border: 1px solid #2c3d52;
-      border-radius: 12px; padding: 10px 12px; margin: 8px 0;
-      max-width: 85%; word-wrap: break-word;
-      direction: ltr !important;
-      unicode-bidi: normal !important;
-      text-align: left !important;
-    }
-    .chat-msg.mine {
-      margin-left: auto; background: #16301f; border-color: #3f8a50;
-    }
-    .chat-msg .chat-meta,
-    .chat-msg .txt {
-      direction: ltr !important;
-      unicode-bidi: plaintext !important;
-      text-align: left !important;
-    }
-    .chat-meta { font-size: 11px; opacity: 0.6; margin-bottom: 4px; }
-    .chat-msg .txt { font-size: 15px; line-height: 1.4; }
-    .chat-input-row {
-      display: flex !important;
-      flex-direction: row !important;
-      align-items: stretch;
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .chat-input-row input {
-      flex: 1 1 auto !important;
-      width: auto !important;
-      min-width: 0 !important;
-      margin: 0 !important;
-      display: inline-block !important;
-      direction: ltr !important;
-      unicode-bidi: normal !important;
-    }
-    .chat-input-row button {
-      flex: 0 0 auto !important;
-      width: auto !important;
-      min-width: 70px !important;
-      padding: 12px 18px !important;
-      font-size: 16px;
-      border-radius: 10px; border: 1px solid #3f8a50;
-      background: #2f6e3c; color: #fff;
-      margin: 0 !important;
-      display: inline-block !important;
-      position: static !important;
-    }
-    /* ===== Чтение урока: защита от копирования ===== */
-    #lesson-body {
-      user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
-      font-size: 15px; line-height: 1.6; white-space: pre-wrap;
-    }
-    #lesson-wrap { position: relative; overflow: hidden; }
-    #watermark {
-      position: absolute; inset: 0; pointer-events: none;
-      display: flex; align-items: center; justify-content: center;
-      transform: rotate(-25deg); font-size: 20px; font-weight: bold;
-      color: rgba(255,255,255,0.05); text-align: center;
-      word-break: break-all; padding: 20px;
-    }
-    textarea { min-height: 120px; }
-  </style>
+  <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
   <!-- ===== Сплэш-экран с логотипом ===== -->
   <div id="splash" class="active">
-    <img id="logo" src="logo.png?v=8" alt="PRO.AI">
+    <img id="logo" src="logo.png?v=9" alt="PRO.AI">
   </div>
 
   <!-- ========== ЭКРАН: ВХОД (только для браузера; из Telegram — авто-вход) ========== -->
@@ -411,13 +233,13 @@
 
   <div id="toast"></div>
 
-  <script src="js/account.js?v=8"></script>
-  <script src="js/games-catalog.js?v=8"></script>
-  <script src="js/learn.js?v=8"></script>
-  <script src="js/firebase.js?v=8"></script>
-  <script src="js/chat.js?v=8"></script>
-  <script src="js/avatar-editor.js?v=8"></script>
-  <script src="js/logo.js?v=8"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/account.js?v=9"></script>
+  <script src="js/games-catalog.js?v=9"></script>
+  <script src="js/learn.js?v=9"></script>
+  <script src="js/firebase.js?v=9"></script>
+  <script src="js/chat.js?v=9"></script>
+  <script src="js/avatar-editor.js?v=9"></script>
+  <script src="js/logo.js?v=9"></script>
+  <script src="js/app.js?v=9"></script>
 </body>
 </html>
