@@ -4,7 +4,8 @@ const $ = sel => document.querySelector(sel);
 const SCREENS = [
   "screen-auth", "screen-lobby", "screen-games", "screen-game-form",
   "screen-admin", "screen-admin-learn", "screen-tariff-form", "screen-lesson-form",
-  "screen-learn", "screen-lesson", "screen-rules", "screen-chats", "screen-forum", "screen-settings"
+  "screen-learn", "screen-lesson", "screen-chats", "screen-chat-room",
+  "screen-rules", "screen-forum", "screen-settings"
 ];
 const ROLE_LABELS = { guest: "Гость", student: "Ученик", developer: "Разработчик", admin: "Админ" };
 const LEVEL_LABELS = { free: "Свободный доступ", book: "Книга", video: "Видео", pro: "PRO" };
@@ -13,7 +14,6 @@ const LEVEL_LABELS = { free: "Свободный доступ", book: "Книг�
 const tg = window.Telegram ? window.Telegram.WebApp : null;
 const tgUser = (tg && tg.initDataUnsafe) ? tg.initDataUnsafe.user : null;
 
-// открытие ссылок способом, правильным для текущей среды
 function openLink(url) {
   if (tg && tg.openLink) tg.openLink(url);
   else window.open(url, "_blank");
@@ -232,10 +232,106 @@ function submitGameForm() {
   renderGames();
   showScreen("screen-games");
 }
+
+// ---------- чат ----------
+
+let chatUnsub = null;
+let currentChannelId = null;
+
+function stopChatWatch() {
+  if (chatUnsub) { chatUnsub(); chatUnsub = null; }
+  currentChannelId = null;
+}
+
+function renderChats() {
+  const box = $("#chats-content");
+  box.textContent = "";
+  Chat.channels().forEach(c => {
+    const item = document.createElement("div");
+    item.className = "lesson-item";
+    const t = document.createElement("div");
+    t.className = "lt";
+    t.textContent = c.name;
+    item.appendChild(t);
+    const arr = document.createElement("div");
+    arr.textContent = "›";
+    item.appendChild(arr);
+    item.onclick = () => openChatRoom(c.id, c.name);
+    box.appendChild(item);
+  });
+}
+
+function openChatRoom(id, name) {
+  stopChatWatch();
+  currentChannelId = id;
+  $("#chat-title").textContent = name;
+  $("#chat-messages").innerHTML = "";
+  const canMod = Chat.canModerate();
+  chatUnsub = Chat.watchMessages(id, rows => renderChatMessages(rows, canMod));
+  showScreen("screen-chat-room");
+}
+
+function renderChatMessages(rows, canMod) {
+  const box = $("#chat-messages");
+  box.innerHTML = "";
+  if (rows.length === 0) {
+    const p = document.createElement("p");
+    p.className = "empty-note";
+    p.textContent = "Сообщений пока нет. Напишите первым!";
+    box.appendChild(p);
+  }
+  rows.forEach(m => {
+    const div = document.createElement("div");
+    div.className = "chat-msg" + (m.mine ? " mine" : "");
+    const meta = document.createElement("div");
+    meta.className = "chat-meta";
+    const timeStr = m.created
+      ? new Date(m.created).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : "...";
+    meta.textContent = m.name + " · " + timeStr;
+    const txt = document.createElement("div");
+    txt.className = "txt";
+    txt.textContent = m.text;
+    div.appendChild(meta);
+    div.appendChild(txt);
+
+    div.onclick = async () => {
+      if (m.mine) {
+        if (confirm("Удалить ваше сообщение?")) {
+          await Chat.deleteMessage(currentChannelId, m.id);
+        }
+      } else if (canMod) {
+        const act = prompt(
+          "Сообщение от " + m.name + ":\n" +
+          "1 — удалить сообщение\n" +
+          "2 — мут автора на 1 час\n" +
+          "3 — мут автора на 24 часа\n" +
+          "4 — мут автора навсегда\n" +
+          "5 — снять мут с автора"
+        );
+        if (act === "1") await Chat.deleteMessage(currentChannelId, m.id);
+        else if (act === "2") { await Chat.mute(m.from, 1, Chat.identity().name); showToast("Мут на 1 час"); }
+        else if (act === "3") { await Chat.mute(m.from, 24, Chat.identity().name); showToast("Мут на 24 часа"); }
+        else if (act === "4") { await Chat.mute(m.from, 0, Chat.identity().name); showToast("Мут навсегда"); }
+        else if (act === "5") { await Chat.unmute(m.from); showToast("Мут снят"); }
+      }
+    };
+    box.appendChild(div);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+function sendChatMessage() {
+  const input = $("#chat-input");
+  const text = input.value;
+  if (!text.trim()) return;
+  Chat.send(currentChannelId, text)
+    .then(() => { input.value = ""; })
+    .catch(e => showToast(e.message));
+}
 // ---------- обучение ----------
 
-// секретный код администратора — поменяйте на свой
-const ADMIN_PIN = "Yuryury1983$$$";
+const ADMIN_PIN = "Yuryury1983$$$";   // ← впишите СВОЙ код, если меняли
 
 function discountText(t) {
   const pr = Learn.priceNow(t);
@@ -360,7 +456,6 @@ function openLesson(id) {
   }
 
   $("#lesson-body").textContent = l.body || "Текст урока пока не написан.";
-  // водяной знак: служебный логин — по нему вычислим источник утечки
   $("#watermark").textContent = "PRO.AI · " + Account.data.login + " · не копируйте";
   showScreen("screen-lesson");
 }
@@ -528,7 +623,6 @@ function init() {
   $("#btn-auth-telegram").onclick = () => { Account.create("telegram", "dev_test_user"); enterLobby(); };
   $("#btn-auth-google").onclick = () => { Account.create("google", "dev_test_user"); enterLobby(); };
 
-  // админ — только по секретному коду
   $("#btn-auth-admin").onclick = () => {
     const pin = prompt("Введите код администратора");
     if (pin === null) return;
@@ -546,13 +640,18 @@ function init() {
   document.querySelectorAll(".btn-back").forEach(b => {
     b.onclick = () => showScreen(b.dataset.target);
   });
+  // выход из чата — останавливаем подписку на сообщения
+  $("#btn-chat-back").onclick = () => { stopChatWatch(); showScreen("screen-chats"); };
 
   // --- лобби ---
   $("#btn-games").onclick = () => { renderGames(); showScreen("screen-games"); };
   $("#btn-learn").onclick = () => { renderLearn(); showScreen("screen-learn"); };
   $("#btn-rules").onclick = () => showScreen("screen-rules");
-  $("#btn-chats").onclick = () => showScreen("screen-chats");
+  $("#btn-chats").onclick = () => { renderChats(); showScreen("screen-chats"); };
   $("#btn-forum").onclick = () => showScreen("screen-forum");
+
+  // --- чат ---
+  $("#btn-chat-send").onclick = sendChatMessage;
 
   // --- форма игры ---
   $("#btn-gf-submit").onclick = submitGameForm;
@@ -614,6 +713,7 @@ function init() {
   document.querySelectorAll("#tabbar button").forEach(b => {
     b.onclick = () => {
       if (b.dataset.tab === "screen-games") renderGames();
+      if (b.dataset.tab === "screen-chats") renderChats();
       showScreen(b.dataset.tab);
     };
   });
@@ -621,6 +721,10 @@ function init() {
   // --- запуск ---
   GamesCatalog.load();
   Learn.load();
+  // защита: админ-сессия (вход по коду) не переживает перезапуск приложения
+  if (Account.load() && Account.data.provider === "admin-test") {
+    Account.setRole("guest");
+  }
   // авто-вход: открыл из бота Telegram — вошёл под своим аккаунтом
   if (tgUser) {
     if (!Account.load()) {
