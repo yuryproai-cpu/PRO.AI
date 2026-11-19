@@ -331,7 +331,7 @@ function sendChatMessage() {
   Chat.send(currentChannelId, text)
     .then(() => { input.value = ""; })
     .catch(e => showToast(e.message));
-    }
+                                               }
 // ---------- обучение ----------
 
 function discountText(t) {
@@ -717,14 +717,17 @@ function init() {
 
   const iAmAdmin = tgUser && ADMIN_TELEGRAM_IDS.includes(tgUser.id);
 
-  // авто-вход из Telegram; владелец платформы всегда админ
+  // авто-вход из Telegram
   if (tgUser) {
     if (!Account.load()) {
       Account.create("telegram",
         tgUser.username ? "@" + tgUser.username : "id" + tgUser.id,
         iAmAdmin ? "admin" : "guest");
-    } else if (iAmAdmin && Account.data.role !== "admin") {
-      Account.setRole("admin");
+    } else {
+      // роль сверяется с владельцем при каждом запуске:
+      // на общем устройстве второй Telegram-аккаунт не получит чужую роль
+      if (iAmAdmin && Account.data.role !== "admin") Account.setRole("admin");
+      if (!iAmAdmin && Account.data.role === "admin") Account.setRole("guest");
     }
     enterLobby();
   } else if (Account.load()) {
