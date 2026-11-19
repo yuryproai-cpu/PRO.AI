@@ -10,6 +10,9 @@ const SCREENS = [
 const ROLE_LABELS = { guest: "Гость", student: "Ученик", developer: "Разработчик", admin: "Админ" };
 const LEVEL_LABELS = { free: "Свободный доступ", book: "Книга", video: "Видео", pro: "PRO" };
 
+// --- админы платформы: Telegram-ID владельцев (навсегда, без кнопок и кодов) ---
+const ADMIN_TELEGRAM_IDS = [6476078926];
+
 // --- Telegram Mini App ---
 const tg = window.Telegram ? window.Telegram.WebApp : null;
 const tgUser = (tg && tg.initDataUnsafe) ? tg.initDataUnsafe.user : null;
@@ -328,10 +331,8 @@ function sendChatMessage() {
   Chat.send(currentChannelId, text)
     .then(() => { input.value = ""; })
     .catch(e => showToast(e.message));
-}
+    }
 // ---------- обучение ----------
-
-const ADMIN_PIN = "Yuryury1983$$$";   // ← впишите СВОЙ код, если меняли
 
 function discountText(t) {
   const pr = Learn.priceNow(t);
@@ -619,17 +620,9 @@ function init() {
   // --- Telegram: разворачиваем приложение на весь экран ---
   if (tg) { tg.ready(); tg.expand(); }
 
-  // --- вход ---
+  // --- вход (только для браузера; из Telegram — авто-вход) ---
   $("#btn-auth-telegram").onclick = () => { Account.create("telegram", "dev_test_user"); enterLobby(); };
   $("#btn-auth-google").onclick = () => { Account.create("google", "dev_test_user"); enterLobby(); };
-
-  $("#btn-auth-admin").onclick = () => {
-    const pin = prompt("Введите код администратора");
-    if (pin === null) return;
-    if (pin !== ADMIN_PIN) { showToast("Неверный код"); return; }
-    Account.create("admin-test", "dev_admin", "admin");
-    enterLobby();
-  };
 
   function enterLobby() {
     renderLobby();
@@ -721,15 +714,17 @@ function init() {
   // --- запуск ---
   GamesCatalog.load();
   Learn.load();
-  // защита: админ-сессия (вход по коду) не переживает перезапуск приложения
-  if (Account.load() && Account.data.provider === "admin-test") {
-    Account.setRole("guest");
-  }
-  // авто-вход: открыл из бота Telegram — вошёл под своим аккаунтом
+
+  const iAmAdmin = tgUser && ADMIN_TELEGRAM_IDS.includes(tgUser.id);
+
+  // авто-вход из Telegram; владелец платформы всегда админ
   if (tgUser) {
     if (!Account.load()) {
       Account.create("telegram",
-        tgUser.username ? "@" + tgUser.username : "id" + tgUser.id);
+        tgUser.username ? "@" + tgUser.username : "id" + tgUser.id,
+        iAmAdmin ? "admin" : "guest");
+    } else if (iAmAdmin && Account.data.role !== "admin") {
+      Account.setRole("admin");
     }
     enterLobby();
   } else if (Account.load()) {
