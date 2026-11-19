@@ -259,3 +259,20 @@ button.danger { background: #5a2f2f; border-color: #8a3f3f; }
   transition: opacity 0.3s;
 }
 #toast[hidden] { display: none; }
+/* Сплэш-экран */
+#splash {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+#splash[hidden] { display: none; }
+#splash img {
+  width: min(60vw, 240px);
+  height: auto;
+  max-height: 40vh;
+  object-fit: contain;
+}
