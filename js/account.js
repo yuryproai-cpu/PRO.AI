@@ -1,11 +1,9 @@
 /* ============================================================
-   PRO.AI · js/account.js  —  v0.2.4
-   Платформенный аккаунт: профиль в Firestore, аватар в avatars/{uid},
-   идемпотентная миграция localStorage → сервер, offline-кэш.
-   Схема (принята): uid (идентичность) → loginType (способ входа) →
-   name (отображаемое, 20) → bio (150). Служебного логина нет.
-   Game Profile (Civ) не мигрирует и не удаляется (_platformMigrated).
-   Зависимости (подключить ДО этого файла): firebase-*.js, js/firebase.js
+   PRO.AI · js/account.js  —  v0.2.5
+   Отличие от v0.2.4: доступ к базе через Firebase.ready / Firebase.db
+   (js/firebase.js грузит SDK динамически и глобальную db не создаёт).
+   Мост — getDb(): ждёт готовность Firebase и возвращает Firestore.
+   Всё остальное (миграция, avatars/{uid}, offline-кэш, права) — как в v0.2.4.
    ============================================================ */
 
 'use strict';
@@ -20,10 +18,17 @@ const LS_UID_KEY = 'proai_browser_uid';
 
 const AVATAR_MAX_PX = 256;
 const AVATAR_JPEG_QUALITY = 0.85;
-const AVATAR_MAX_INPUT_BYTES = 10 * 1024 * 1024; // 10 МБ
+const AVATAR_MAX_INPUT_BYTES = 10 * 1024 * 1024;
 
 const NAME_MAX_LEN = 20;
 const BIO_MAX_LEN = 150;
+
+/* ---------- Мост к Firebase (js/firebase.js) ---------- */
+
+async function getDb() {
+  await Firebase.ready;      // ждём динамическую загрузку SDK
+  return Firebase.db;
+}
 
 /* ---------- Утилиты ---------- */
 
@@ -66,11 +71,11 @@ function getSourceHint() {
 
 function getLoginTypeHint() {
   if (getSourceHint() === 'telegram') return 'telegram';
-  if (firebase.auth && firebase.auth().currentUser) return 'google';
+  if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) return 'google';
   return 'test';
 }
 
-function isAdminUid(uid) {   // права — только по константе
+function isAdminUid(uid) {
   return ADMIN_TELEGRAM_IDS.includes(String(uid));
 }
 
@@ -79,10 +84,10 @@ function isAdminUid(uid) {   // права — только по констан�
 function defaultProfile(uid) {
   return {
     uid,
-    source: null,           // 'telegram' | 'browser'
-    name: null,             // имя в лобби, лимит 20
-    bio: null,              // лимит 150
-    loginType: null,        // 'telegram' | 'google' | 'test'
+    source: null,
+    name: null,
+    bio: null,
+    loginType: null,
     role: 'guest',
     tariff: null,
     xp: 0,
@@ -102,22 +107,24 @@ async function loadAccount() {
 
   let server = null, priv = null, usersOk = false;
 
-  // users и users_private читаются независимо; при сбое — кэш
   try {
+    const db = await getDb();
     const snap = await db.collection('users').doc(uid).get();
     if (snap.exists) server = snap.data();
     usersOk = true;
     try { localStorage.setItem(LS_CACHE, JSON.stringify(server || {})); } catch (e) {}
   } catch (e) {
-    console.warn('[account] users недоступен, показываю локальную копию:', e && e.code);
-    server = readLS(LS_CACHE);
+    console.warn('[account] users недоступен, показываю локальную копию:', e && e.message);
   }
   try {
+    const db = await getDb();
     const snap = await db.collection('users_private').doc(uid).get();
     if (snap.exists) priv = snap.data();
   } catch (e) {
-    console.warn('[account] users_private недоступен:', e && e.code);
+    console.warn('[account] users_private недоступен:', e && e.message);
   }
+
+  if (!usersOk) server = readLS(LS_CACHE);   // offline last-known-good
 
   // users_private нет → дефолты; клиент его НЕ создаёт
   const account = {
@@ -138,16 +145,15 @@ async function loadAccount() {
     console.warn('[account] role=admin в users_private для uid', uid, '— игнорируется');
     account.role = 'user';
   }
-  // 'developer' не трогаем — known issue открытых правил (закроется на этапе строгих правил)
 
   account.offline = !usersOk;
   return account;
 }
 
 /* ---------- Сохранение клиентских полей ---------- */
-/* Только users/{uid}, только переданные поля. role/tariff/xp/badges — не трогает. */
 
 async function saveAccountFields(fields) {
+  const db = await getDb();
   const uid = getUid();
 
   const payload = { uid, updatedAt: nowServerTs() };
@@ -160,7 +166,6 @@ async function saveAccountFields(fields) {
 
   await db.collection('users').doc(uid).set(payload, { merge: true });
 
-  // Кэш — только в LS_CACHE, не в legacy proai_account; клиентское время
   try {
     const cache = { ...readLS(LS_CACHE), ...payload, updatedAt: Date.now() };
     localStorage.setItem(LS_CACHE, JSON.stringify(cache));
@@ -171,21 +176,23 @@ async function saveAccountFields(fields) {
 /* ---------- Аватар: avatars/{uid} ---------- */
 
 async function saveAvatarDataUrl(dataUrl) {
+  const db = await getDb();
   const uid = getUid();
   await db.collection('avatars').doc(uid).set({
     data: dataUrl,
     updatedAt: nowServerTs()
   }, { merge: true });
-  await saveAccountFields({ hasAvatar: true });   // флаг ставит только эта функция
+  await saveAccountFields({ hasAvatar: true });
   return true;
 }
 
 async function getAvatarDataUrl(uid) {
   try {
+    const db = await getDb();
     const snap = await db.collection('avatars').doc(String(uid || getUid())).get();
     return snap.exists ? (snap.data().data || null) : null;
   } catch (e) {
-    console.warn('[account] аватар не прочитан:', e && e.code);
+    console.warn('[account] аватар не прочитан:', e && e.message);
     return null;
   }
 }
@@ -202,7 +209,7 @@ function fileToAvatarDataUrl(file) {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      if (!img.width || !img.height) {          // битые/SVG без размеров → пустой canvas
+      if (!img.width || !img.height) {
         URL.revokeObjectURL(url);
         reject(new Error('bad image dimensions')); return;
       }
@@ -232,7 +239,6 @@ function mapLegacyProfile(raw) {
   return { name, bio, avatar };
 }
 
-/* proai_account удаляем целиком; civ_profile — помечаем, данные Цивы сохраняем */
 function markPlatformMigrated() {
   localStorage.removeItem(LS_KEYS[0]);
   const civ = readLS(LS_KEYS[1]);
@@ -245,7 +251,6 @@ function markPlatformMigrated() {
 async function migrateLocalToServer() {
   const uid = getUid();
 
-  // Уже мигрировано — выходим сразу, Циву не трогаем
   const civEarly = readLS('civ_profile');
   if (civEarly && civEarly._platformMigrated && !readLS(LS_KEYS[0])) {
     return { skipped: true };
@@ -256,9 +261,13 @@ async function migrateLocalToServer() {
 
   const mapped = mapLegacyProfile(local);
   if (!mapped.name && !mapped.bio && !mapped.avatar) {
-    markPlatformMigrated();   // платформенной части нет, Циву не трогаем
+    markPlatformMigrated();
     return { skipped: true };
   }
+
+  let db;
+  try { db = await getDb(); }
+  catch (e) { return { deferred: true, reason: 'network' }; }
 
   let serverSnap;
   try { serverSnap = await db.collection('users').doc(uid).get(); }
@@ -287,7 +296,7 @@ async function migrateLocalToServer() {
   }
 
   try {
-    await db.collection('users').doc(uid).collection('migration_log').doc('v0_2_4').set({
+    await db.collection('users').doc(uid).collection('migration_log').doc('v0_2_5').set({
       from: LS_KEYS.find(k => !!readLS(k)) || 'localStorage',
       hadLocalAdminRole: local.role === 'admin' && !isAdminUid(uid),
       at: nowServerTs()
@@ -310,6 +319,7 @@ async function initAccount() {
   let createdNew = false;
   if (!account.offline && !migration.deferred) {
     try {
+      const db = await getDb();
       const ref = db.collection('users').doc(account.uid);
       const snap = await ref.get();
       if (!snap.exists) {
@@ -324,7 +334,7 @@ async function initAccount() {
         createdNew = true;
       }
     } catch (e) {
-      console.warn('[account] не удалось создать профиль:', e && e.code);
+      console.warn('[account] не удалось создать профиль:', e && e.message);
     }
   }
 
@@ -337,7 +347,7 @@ async function initAccount() {
 window.PROAI = window.PROAI || {};
 Object.assign(window.PROAI, {
   ADMIN_TELEGRAM_IDS,
-  initAccount, loadAccount, saveAccountFields,
+  initAccount, loadAccount, saveAccountFields, getDb,
   saveAvatarDataUrl, getAvatarDataUrl, fileToAvatarDataUrl,
   isAdminUid, getUid, mapLegacyProfile
 });
