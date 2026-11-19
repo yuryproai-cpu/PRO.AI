@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>PRO.AI</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
   <style>
     /* ===== Прокрутка и отступ от нижнего меню ===== */
     .screen {
@@ -189,16 +189,15 @@
 
   <!-- ===== Сплэш-экран с логотипом ===== -->
   <div id="splash" class="active">
-    <img id="logo" src="logo.png?v=6" alt="PRO.AI">
+    <img id="logo" src="logo.png?v=8" alt="PRO.AI">
   </div>
 
-  <!-- ========== ЭКРАН: ВХОД (ЗАГЛУШКА / АДМИН) ========== -->
+  <!-- ========== ЭКРАН: ВХОД (только для браузера; из Telegram — авто-вход) ========== -->
   <section id="screen-auth" class="screen">
     <h1>PRO.AI</h1>
     <p class="stub-text">Платформа игр. Вход через аккаунт.</p>
     <button id="btn-auth-telegram">Войти через Telegram</button>
     <button id="btn-auth-google">Войти через Google</button>
-    <button id="btn-auth-admin" class="btn-mini">Вход для админа</button>
   </section>
 
   <!-- ========== ЭКРАН: ЛОББИ ========== -->
@@ -226,7 +225,7 @@
   <!-- ========== ЭКРАН: ФОРМА ИГРЫ ========== -->
   <section id="screen-game-form" class="screen hidden">
     <button class="btn-back" data-target="screen-games">⬅ Назад</button>
-    <h1 id="gf-heading">Нueva игра</h1>
+    <h1 id="gf-heading">Новая игра</h1>
     <p class="form-note" id="gf-note"></p>
 
     <label class="form-label" for="gf-title">Название игры</label>
@@ -412,13 +411,13 @@
 
   <div id="toast"></div>
 
-  <script src="js/account.js?v=7"></script>
-  <script src="js/games-catalog.js?v=7"></script>
-  <script src="js/learn.js?v=7"></script>
-  <script src="js/firebase.js?v=7"></script>
-  <script src="js/chat.js?v=7"></script>
-  <script src="js/avatar-editor.js?v=7"></script>
-  <script src="js/logo.js?v=7"></script>
-  <script src="js/app.js?v=7"></script>
+  <script src="js/account.js?v=8"></script>
+  <script src="js/games-catalog.js?v=8"></script>
+  <script src="js/learn.js?v=8"></script>
+  <script src="js/firebase.js?v=8"></script>
+  <script src="js/chat.js?v=8"></script>
+  <script src="js/avatar-editor.js?v=8"></script>
+  <script src="js/logo.js?v=8"></script>
+  <script src="js/app.js?v=8"></script>
 </body>
 </html>
