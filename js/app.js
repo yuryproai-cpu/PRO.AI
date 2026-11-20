@@ -1,8 +1,9 @@
 /* ============================================================
-   PRO.AI · js/app.js — v0.2.7
-   + telegram-web-app.js интеграция (ready/expand)
-   + бейдж «Админ» в лобби
-   + вкладка «Ещё»: диагностика (uid, вход, роль, сервер) и админ-раздел
+   PRO.AI · js/app.js — v0.3.0
+   Новая навигация: без нижней панели; кнопка-спойлер слева вверху
+   открывает пустое меню-ящик (разделы добавит владелец).
+   Главный экран — «Кабинет»: свой профиль + у админа раздел
+   «Все кабинеты пользователей» (список users из Firestore).
    ============================================================ */
 
 'use strict';
@@ -30,6 +31,15 @@ function setSessionMigration(migration) {
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function fmtDate(ts) {
+  try {
+    const opts = { day: 'numeric', month: 'long', year: 'numeric' };
+    if (ts && typeof ts.toDate === 'function') return ts.toDate().toLocaleDateString('ru-RU', opts);
+    if (typeof ts === 'number') return new Date(ts).toLocaleDateString('ru-RU', opts);
+  } catch (e) {}
+  return null;
 }
 
 /* ---------- Тост ---------- */
@@ -67,7 +77,19 @@ async function splashWait() {
   finish();
 }
 
-/* ---------- Лобби ---------- */
+/* ---------- Меню-спойлер ---------- */
+
+function openMenu() {
+  document.getElementById('menu-overlay').hidden = false;
+  document.getElementById('menu-drawer').hidden = false;
+}
+
+function closeMenu() {
+  document.getElementById('menu-overlay').hidden = true;
+  document.getElementById('menu-drawer').hidden = true;
+}
+
+/* ---------- Кабинет ---------- */
 
 const AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
@@ -81,266 +103,7 @@ function displayNameOf(account) {
   return account.name || 'Игрок';
 }
 
-function renderLobby(account) {
-  const lobby = document.getElementById('screen-lobby');
-  if (!lobby) return;
-
-  const nameEl = lobby.querySelector('.profile-name');
-  const bioEl = lobby.querySelector('.profile-bio');
-  const avatarEl = lobby.querySelector('.profile-avatar img');
-  const editNameBtn = lobby.querySelector('.profile-name-edit');
-  const badgeEl = lobby.querySelector('.profile-role-badge');
-
-  if (nameEl) nameEl.textContent = displayNameOf(account);
-  if (bioEl) bioEl.textContent = account.bio || '';
-  if (editNameBtn) editNameBtn.hidden = !!account.name;
-
-  if (badgeEl) {
-    if (account.isAdmin) {
-      badgeEl.textContent = 'Админ';
-      badgeEl.className = 'profile-role-badge badge badge-admin';
-      badgeEl.hidden = false;
-    } else {
-      badgeEl.hidden = true;
-    }
-  }
-
-  if (avatarEl) {
-    avatarEl.src = AVATAR_PLACEHOLDER;
-    if (account.hasAvatar) {
-      if (account._avatarUrl) {
-        avatarEl.src = account._avatarUrl;
-      } else {
-        getAvatarDataUrl(account.uid).then(url => {
-          if (url) { account._avatarUrl = url; avatarEl.src = url; }
-        });
-      }
-    }
-  }
-}
-
-async function onEditName() {
-  const account = getSessionAccount();
-  if (!account) return;
-  const input = prompt('Имя в лобби (до 20 символов):', account.name || '');
-  if (input === null) return;
-  try {
-    await saveAccountFields({ name: input });
-    account.name = input.trim().slice(0, 20) || null;
-    renderLobby(account);
-  } catch (e) {
-    alert('Не удалось сохранить имя: ' + e.message);
-  }
-}
-
-async function onChangeAvatar(file) {
-  const account = getSessionAccount();
-  if (!account) return;
-  try {
-    const dataUrl = await fileToAvatarDataUrl(file);
-    await saveAvatarDataUrl(dataUrl);
-    account.hasAvatar = true;
-    account._avatarUrl = dataUrl;
-    renderLobby(account);
-  } catch (e) {
-    alert('Не удалось загрузить аватар: ' + e.message);
-  }
-}
-
-/* ============================================================
-   Вкладка «Игры» (GamesCatalog)
-   ============================================================ */
-
-function askGameFields(includeAuthor) {
-  const title = (prompt('Название игры:') || '').trim();
-  if (!title) return null;
-  const description = (prompt('Описание (можно пропустить):') || '').trim();
-  const icon = (prompt('Иконка — эмодзи (можно пропустить):') || '').trim();
-  let author = 'Ученик PRO.AI';
-  let linkTelegram = '', linkMarket = '';
-  if (includeAuthor) {
-    author = (prompt('Автор:', 'PRO.AI') || 'PRO.AI').trim();
-    linkTelegram = (prompt('Ссылка Telegram (можно пропустить):') || '').trim();
-    linkMarket = (prompt('Ссылка на маркет (можно пропустить):') || '').trim();
-  } else {
-    linkTelegram = (prompt('Ссылка Telegram (можно пропустить):') || '').trim();
-    linkMarket = (prompt('Ссылка на маркет (можно пропустить):') || '').trim();
-  }
-  return { title, description, icon, author, linkTelegram, linkMarket };
-}
-
-function onAddOfficial() {
-  const game = askGameFields(true);
-  if (!game) return;
-  GamesCatalog.addOfficial(game);
-  showToast('Игра добавлена в PRO.AI Games');
-  renderGames(getSessionAccount());
-}
-
-function onProposeGame() {
-  const account = getSessionAccount();
-  const game = askGameFields(false);
-  if (!game) return;
-  game.author = account?.name || 'Ученик PRO.AI';
-  GamesCatalog.proposeStudent(game);
-  showToast('Игра отправлена на модерацию');
-  renderGames(account);
-}
-
-function onModerate(id, decision) {
-  GamesCatalog.moderate(id, decision);
-  showToast(decision === 'approve' ? 'Игра одобрена' : 'Игра отклонена');
-  renderGames(getSessionAccount());
-}
-
-function onRemoveGame(id) {
-  if (!confirm('Удалить игру из каталога?')) return;
-  GamesCatalog.remove(id);
-  showToast('Игра удалена');
-  renderGames(getSessionAccount());
-}
-
-function gameCard(g, account, opts = {}) {
-  const card = document.createElement('div');
-  card.className = 'card';
-
-  const icon = document.createElement('div');
-  icon.className = 'game-icon';
-  icon.textContent = g.icon || '🎮';
-  card.appendChild(icon);
-
-  const body = document.createElement('div');
-  body.style.flex = '1';
-  body.style.minWidth = '0';
-
-  const title = document.createElement('div');
-  title.className = 'card-title';
-  title.textContent = g.title || '(без названия)';
-  body.appendChild(title);
-
-  if (g.description) {
-    const sub = document.createElement('div');
-    sub.className = 'card-sub';
-    sub.textContent = g.description;
-    body.appendChild(sub);
-  }
-
-  const badge = document.createElement('div');
-  badge.className = 'badge';
-  badge.textContent = 'Автор: ' + (g.author || '—');
-  body.appendChild(badge);
-
-  if (g.linkTelegram || g.linkMarket) {
-    const links = document.createElement('div');
-    links.className = 'card-links';
-    const mk = (href, label) => {
-      const a = document.createElement('a');
-      a.href = href; a.target = '_blank'; a.rel = 'noopener';
-      a.textContent = label;
-      links.appendChild(a);
-    };
-    if (g.linkTelegram) mk(g.linkTelegram, 'Открыть в Telegram');
-    if (g.linkMarket) mk(g.linkMarket, 'Маркет');
-    body.appendChild(links);
-  }
-
-  if (account?.isAdmin) {
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
-    if (opts.pending) {
-      const ok = document.createElement('button');
-      ok.textContent = '✓ Одобрить';
-      ok.addEventListener('click', () => onModerate(g.id, 'approve'));
-      actions.appendChild(ok);
-      const no = document.createElement('button');
-      no.className = 'danger';
-      no.textContent = '✗ Отклонить';
-      no.addEventListener('click', () => onModerate(g.id, 'reject'));
-      actions.appendChild(no);
-    }
-    const del = document.createElement('button');
-    del.className = 'danger';
-    del.textContent = '🗑 Удалить';
-    del.addEventListener('click', () => onRemoveGame(g.id));
-    actions.appendChild(del);
-    body.appendChild(actions);
-  }
-
-  card.appendChild(body);
-  return card;
-}
-
-function renderGames(account) {
-  const screen = document.getElementById('screen-games');
-  if (!screen) return;
-  if (typeof GamesCatalog === 'undefined') {
-    screen.innerHTML = '<p class="empty-state">Каталог недоступен (games-catalog.js не загружен)</p>';
-    return;
-  }
-  GamesCatalog.load();
-  screen.innerHTML = '';
-
-  const h = document.createElement('h1');
-  h.textContent = 'Игры';
-  screen.appendChild(h);
-
-  const official = document.createElement('section');
-  const oh = document.createElement('h2');
-  oh.textContent = 'PRO.AI Games';
-  official.appendChild(oh);
-
-  const list = GamesCatalog.getOfficial();
-  if (!list.length) {
-    const empty = document.createElement('p');
-    empty.className = 'empty-state';
-    empty.textContent = 'Пока пусто';
-    official.appendChild(empty);
-  }
-  list.forEach(g => official.appendChild(gameCard(g, account)));
-
-  if (account?.isAdmin) {
-    const add = document.createElement('button');
-    add.className = 'btn btn-secondary';
-    add.style.marginTop = '8px';
-    add.textContent = '+ Добавить игру';
-    add.addEventListener('click', onAddOfficial);
-    official.appendChild(add);
-  }
-  screen.appendChild(official);
-
-  const student = document.createElement('section');
-  const sh = document.createElement('h2');
-  sh.textContent = 'Игры учеников';
-  student.appendChild(sh);
-
-  GamesCatalog.getStudentApproved().forEach(g => student.appendChild(gameCard(g, account)));
-
-  if (account?.isAdmin) {
-    const pending = GamesCatalog.getStudentPending();
-    if (pending.length) {
-      const ph = document.createElement('h3');
-      ph.textContent = 'На модерации (' + pending.length + ')';
-      ph.style.marginTop = '14px';
-      student.appendChild(ph);
-      pending.forEach(g => student.appendChild(gameCard(g, account, { pending: true })));
-    }
-  }
-
-  const propose = document.createElement('button');
-  propose.className = 'btn btn-secondary';
-  propose.style.marginTop = '8px';
-  propose.textContent = 'Предложить свою игру';
-  propose.addEventListener('click', onProposeGame);
-  student.appendChild(propose);
-
-  screen.appendChild(student);
-}
-
-/* ============================================================
-   Вкладка «Ещё»: диагностика + админ-раздел
-   ============================================================ */
-
-function diagRow(label, value) {
+function infoRow(label, value) {
   const row = document.createElement('div');
   row.className = 'diag-row';
   const l = document.createElement('span');
@@ -352,109 +115,267 @@ function diagRow(label, value) {
   return row;
 }
 
-function renderSettings(account) {
-  const screen = document.getElementById('screen-settings');
+function renderCabinet(account) {
+  const screen = document.getElementById('screen-cabinet');
   if (!screen) return;
-  screen.innerHTML = '';
 
-  const h = document.createElement('h1');
-  h.textContent = 'Ещё';
-  screen.appendChild(h);
+  const nameEl = screen.querySelector('.profile-name');
+  const bioEl = screen.querySelector('.profile-bio');
+  const avatarEl = screen.querySelector('.profile-avatar img');
+  const editNameBtn = screen.querySelector('.profile-name-edit');
+  const editBioBtn = screen.querySelector('.profile-bio-edit');
+  const badgeEl = screen.querySelector('.profile-role-badge');
 
-  // --- Диагностика: чтобы больше не гадать, кого видит приложение ---
-  const diag = document.createElement('div');
-  diag.className = 'card';
-  diag.style.display = 'block';
-  const dt = document.createElement('div');
-  dt.className = 'card-title';
-  dt.textContent = 'Диагностика';
-  diag.appendChild(dt);
+  if (nameEl) nameEl.textContent = displayNameOf(account);
+  if (bioEl) bioEl.textContent = account.bio || '';
 
-  const inTelegram = !!(window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe?.user);
-  diag.appendChild(diagRow('Открыто в Telegram', inTelegram ? 'да' : 'НЕТ — открой ссылку в Telegram'));
-  diag.appendChild(diagRow('Твой ID (uid)', account.uid || '—'));
-  diag.appendChild(diagRow('Способ входа', account.loginType || '—'));
-  diag.appendChild(diagRow('Роль', account.role || '—'));
-  diag.appendChild(diagRow('Админ', account.isAdmin ? 'да' : 'нет'));
-  diag.appendChild(diagRow('Сервер', account.offline ? 'нет связи' : 'подключен'));
-  screen.appendChild(diag);
+  if (editNameBtn) editNameBtn.hidden = !!account.name;
+  if (editBioBtn) editBioBtn.textContent = account.bio ? '✎ Изменить описание' : '✎ Добавить описание';
 
-  // --- Админ-раздел ---
-  if (account.isAdmin) {
-    const admin = document.createElement('div');
-    admin.className = 'card';
-    admin.style.display = 'block';
-    const at = document.createElement('div');
-    at.className = 'card-title';
-    at.textContent = 'Админка';
-    admin.appendChild(at);
-    const ul = document.createElement('ul');
-    ul.className = 'muted';
-    ul.style.paddingLeft = '20px';
-    ['Модерация игр — вкладка «Игры»',
-     'Модерация чата — вкладка «Чат» (когда подключим)',
-     'Курсы и тарифы — вкладка «Обучение» (когда подключим)'].forEach(t => {
-      const li = document.createElement('li');
-      li.textContent = t;
-      ul.appendChild(li);
-    });
-    admin.appendChild(ul);
-    screen.appendChild(admin);
-  } else if (inTelegram) {
-    const note = document.createElement('p');
-    note.className = 'muted';
-    note.textContent = 'Админ-права выдаются по Telegram ID владельца. Если ты владелец и видишь «нет» — пришли мне скриншот этого экрана.';
-    screen.appendChild(note);
+  if (badgeEl) {
+    if (account.isAdmin) {
+      badgeEl.textContent = 'Админ';
+      badgeEl.className = 'profile-role-badge badge badge-admin';
+      badgeEl.hidden = false;
+    } else if (account.role && account.role !== 'guest') {
+      badgeEl.textContent = account.role;
+      badgeEl.className = 'profile-role-badge badge';
+      badgeEl.hidden = false;
+    } else {
+      badgeEl.hidden = true;
+    }
   }
 
-  if (account.offline) {
-    const warn = document.createElement('p');
-    warn.className = 'muted';
-    warn.textContent = 'Сервер недоступен. Данные загружены из сохранённой копии; изменения уйдут в облако при появлении сети.';
-    screen.appendChild(warn);
+  if (avatarEl) {
+    avatarEl.src = account._avatarUrl || AVATAR_PLACEHOLDER;
+    if (account.hasAvatar && !account._avatarUrl) {
+      getAvatarDataUrl(account.uid).then(url => {
+        if (url) { account._avatarUrl = url; avatarEl.src = url; }
+      });
+    }
+  }
+
+  // Информационный блок
+  const info = screen.querySelector('.cabinet-info');
+  if (info) {
+    info.innerHTML = '';
+    const t = document.createElement('div');
+    t.className = 'card-title';
+    t.textContent = 'Профиль';
+    info.appendChild(t);
+
+    const reg = fmtDate(account.createdAt);
+    if (reg) info.appendChild(infoRow('В PRO.AI с', reg));
+    if (account.loginType) info.appendChild(infoRow('Способ входа', account.loginType));
+    if (account.tariff) info.appendChild(infoRow('Тариф', account.tariff));
+    if (account.xp) info.appendChild(infoRow('Опыт (XP)', String(account.xp)));
+    if (Array.isArray(account.badges) && account.badges.length) {
+      info.appendChild(infoRow('Награды', String(account.badges.length)));
+    }
+    if (!info.childElementCount) {
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = 'Здесь появится информация о тебе';
+      info.appendChild(p);
+    }
+  }
+
+  // Админ-блок: диагностика + все кабинеты
+  const admin = screen.querySelector('.admin-block');
+  if (admin) {
+    admin.innerHTML = '';
+    if (account.isAdmin) {
+      admin.hidden = false;
+      const t = document.createElement('div');
+      t.className = 'card-title';
+      t.textContent = 'Админ';
+      admin.appendChild(t);
+
+      admin.appendChild(infoRow('Твой ID (uid)', account.uid || '—'));
+      admin.appendChild(infoRow('Сервер', account.offline ? 'нет связи' : 'подключен'));
+
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-secondary';
+      btn.style.marginTop = '10px';
+      btn.textContent = 'Все кабинеты пользователей';
+      btn.addEventListener('click', () => openUsersScreen());
+      admin.appendChild(btn);
+    } else {
+      admin.hidden = true;
+    }
   }
 }
 
-/* ---------- Нижняя навигация ---------- */
-
-const NAV_TABS = [
-  { id: 'lobby',    label: 'Лобби',    render: renderLobby },
-  { id: 'games',    label: 'Игры',     render: renderGames },
-  { id: 'learn',    label: 'Обучение', render: null },
-  { id: 'chat',     label: 'Чат',      render: null },
-  { id: 'settings', label: 'Ещё',      render: renderSettings }
-];
-
-function renderTabbar() {
-  const bar = document.getElementById('tabbar');
-  if (!bar || bar.childElementCount) return;
-  NAV_TABS.forEach(tab => {
-    const btn = document.createElement('button');
-    btn.className = 'tabbar-item';
-    btn.dataset.tab = tab.id;
-    btn.textContent = tab.label;
-    btn.addEventListener('click', () => switchTab(tab.id));
-    bar.appendChild(btn);
-  });
-}
-
-function switchTab(id) {
-  document.querySelectorAll('.screen').forEach(s => s.hidden = s.id !== 'screen-' + id);
-  document.querySelectorAll('.tabbar-item').forEach(b =>
-    b.classList.toggle('active', b.dataset.tab === id));
-  const tab = NAV_TABS.find(t => t.id === id);
+async function onEditName() {
   const account = getSessionAccount();
-  if (tab?.render && account) tab.render(account);
+  if (!account) return;
+  const input = prompt('Имя (до 20 символов):', account.name || '');
+  if (input === null) return;
+  try {
+    await saveAccountFields({ name: input });
+    account.name = input.trim().slice(0, 20) || null;
+    renderCabinet(account);
+  } catch (e) {
+    alert('Не удалось сохранить имя: ' + e.message);
+  }
+}
+
+async function onEditBio() {
+  const account = getSessionAccount();
+  if (!account) return;
+  const input = prompt('Описание (до 150 символов):', account.bio || '');
+  if (input === null) return;
+  try {
+    await saveAccountFields({ bio: input });
+    account.bio = input.trim().slice(0, 150) || null;
+    renderCabinet(account);
+  } catch (e) {
+    alert('Не удалось сохранить описание: ' + e.message);
+  }
+}
+
+async function onChangeAvatar(file) {
+  const account = getSessionAccount();
+  if (!account) return;
+  try {
+    const dataUrl = await fileToAvatarDataUrl(file);
+    await saveAvatarDataUrl(dataUrl);
+    account.hasAvatar = true;
+    account._avatarUrl = dataUrl;
+    renderCabinet(account);
+  } catch (e) {
+    alert('Не удалось загрузить аватар: ' + e.message);
+  }
+}
+
+/* ---------- Все кабинеты пользователей (админ) ---------- */
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.hidden = s.id !== id);
+  window.scrollTo(0, 0);
+}
+
+function openUsersScreen() {
+  showScreen('screen-users');
+  const detail = document.getElementById('users-detail');
+  const list = document.getElementById('users-list');
+  if (detail) { detail.hidden = true; detail.innerHTML = ''; }
+  if (list) { list.innerHTML = ''; list.appendChild(userRowSkeleton('Загружаю пользователей…')); }
+  loadUsersList();
+}
+
+function userRowSkeleton(text) {
+  const p = document.createElement('p');
+  p.className = 'muted';
+  p.textContent = text;
+  return p;
+}
+
+async function loadUsersList() {
+  const list = document.getElementById('users-list');
+  if (!list) return;
+  try {
+    const db = await getDb();
+    const snap = await db.collection('users').get();
+    list.innerHTML = '';
+    if (snap.empty) {
+      list.appendChild(userRowSkeleton('Пользователей пока нет'));
+      return;
+    }
+    snap.forEach(doc => {
+      const u = doc.data() || {};
+      const row = document.createElement('div');
+      row.className = 'card user-item';
+      row.style.cursor = 'pointer';
+
+      const name = document.createElement('div');
+      name.className = 'card-title';
+      name.textContent = u.name || '(без имени)';
+      row.appendChild(name);
+
+      const sub = document.createElement('div');
+      sub.className = 'card-sub';
+      sub.textContent = u.uid || doc.id;
+      row.appendChild(sub);
+
+      row.addEventListener('click', () => openUserDetail(doc.id, u.name || null));
+      list.appendChild(row);
+    });
+  } catch (e) {
+    list.innerHTML = '';
+    list.appendChild(userRowSkeleton('Не удалось загрузить список: ' + (e && e.message)));
+  }
+}
+
+async function openUserDetail(uid, nameHint) {
+  const detail = document.getElementById('users-detail');
+  const list = document.getElementById('users-list');
+  if (!detail) return;
+
+  detail.hidden = false;
+  detail.innerHTML = '';
+  list.hidden = true;
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.display = 'block';
+
+  const back = document.createElement('button');
+  back.className = 'btn btn-secondary';
+  back.style.marginBottom = '12px';
+  back.textContent = '← К списку';
+  back.addEventListener('click', () => {
+    detail.hidden = true;
+    detail.innerHTML = '';
+    list.hidden = false;
+  });
+  detail.appendChild(back);
+
+  const t = document.createElement('div');
+  t.className = 'card-title';
+  t.textContent = 'Кабинет пользователя';
+  card.appendChild(t);
+
+  const avatar = document.createElement('img');
+  avatar.src = AVATAR_PLACEHOLDER;
+  avatar.style.cssText = 'width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:8px';
+  card.appendChild(avatar);
+
+  card.appendChild(infoRow('Имя', nameHint || '(без имени)'));
+  card.appendChild(infoRow('ID (uid)', uid));
+  card.appendChild(infoRow('Роль', '…'));
+  card.appendChild(infoRow('Тариф', '…'));
+
+  detail.appendChild(card);
+
+  try {
+    const db = await getDb();
+    const [privSnap, avSnap] = await Promise.all([
+      db.collection('users_private').doc(uid).get(),
+      db.collection('avatars').doc(uid).get()
+    ]);
+    const priv = privSnap.exists ? privSnap.data() : {};
+    card.querySelectorAll('.diag-row b')[2].textContent = priv.role || 'guest';
+    card.querySelectorAll('.diag-row b')[3].textContent = priv.tariff || '—';
+    if (avSnap.exists && avSnap.data().data) avatar.src = avSnap.data().data;
+  } catch (e) {
+    console.warn('[app] детали пользователя недоступны:', e && e.message);
+  }
 }
 
 /* ---------- Привязка событий ---------- */
 
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('menu-btn')?.addEventListener('click', openMenu);
+  document.getElementById('menu-overlay')?.addEventListener('click', closeMenu);
+
   document.querySelector('.profile-name-edit')?.addEventListener('click', onEditName);
   document.querySelector('.profile-name')?.addEventListener('click', onEditName);
+  document.querySelector('.profile-bio-edit')?.addEventListener('click', onEditBio);
   document.querySelector('.avatar-input')?.addEventListener('change', e => {
     if (e.target.files?.[0]) onChangeAvatar(e.target.files[0]);
   });
+  document.getElementById('users-back')?.addEventListener('click', () => showScreen('screen-cabinet'));
 });
 
 /* ---------- Старт ---------- */
@@ -467,7 +388,6 @@ function offlineSession(reason) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Telegram Mini App: сообщаем платформе, что готовы
   if (window.Telegram && Telegram.WebApp) {
     try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {}
   }
@@ -496,8 +416,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!s) return;
       setSessionAccount(s.account);
       setSessionMigration(s.migration);
-      renderTabbar();
-      switchTab('lobby');
+      renderCabinet(s.account);
       if (s.account.offline) showToast('Нет сети — показана сохранённая копия профиля');
     });
   } else {
@@ -505,8 +424,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setSessionMigration(session.migration);
   }
 
-  renderTabbar();
-  switchTab('lobby');
+  renderCabinet(session.account);
 
   if (session.account.offline) showToast('Нет сети — показана сохранённая копия профиля');
   if (session.account.isAdmin) console.info('[app] админ-режим: владелец по ADMIN_TELEGRAM_IDS');
