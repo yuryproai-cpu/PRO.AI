@@ -4,13 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>PRO.AI</title>
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
   <div id="splash"><img src="logo.png" alt="PRO.AI"></div>
 
+  <header id="topbar">
+    <button id="menu-btn" aria-label="Меню">☰</button>
+    <span id="topbar-title">PRO.AI</span>
+    <span class="topbar-spacer"></span>
+  </header>
+
+  <!-- Меню-спойлер: разделы добавит Юра, когда утвердит структуру -->
+  <div id="menu-overlay" hidden></div>
+  <nav id="menu-drawer" hidden>
+    <div class="drawer-title">Меню</div>
+    <p class="drawer-empty muted">Разделы появятся позже</p>
+  </nav>
+
   <main id="app">
-    <section id="screen-lobby" class="screen">
+    <!-- Кабинет: главный экран -->
+    <section id="screen-cabinet" class="screen">
+      <h1>Кабинет</h1>
+
       <div class="profile-card">
         <label class="profile-avatar">
           <img alt="Аватар">
@@ -23,25 +39,29 @@
           </div>
           <button class="profile-name-edit" hidden>✎ Указать имя</button>
           <p class="profile-bio"></p>
+          <button class="profile-bio-edit">✎ Изменить описание</button>
         </div>
       </div>
+
+      <div class="cabinet-info card" style="display:block"></div>
+
+      <div class="admin-block card" hidden style="display:block"></div>
     </section>
-    <section id="screen-games" class="screen" hidden></section>
-    <section id="screen-learn" class="screen" hidden></section>
-    <section id="screen-chat" class="screen" hidden></section>
-    <section id="screen-settings" class="screen" hidden></section>
+
+    <!-- Все кабинеты пользователей (только админ) -->
+    <section id="screen-users" class="screen" hidden>
+      <button id="users-back" class="btn btn-secondary" style="margin-bottom:12px">← Назад в кабинет</button>
+      <div id="users-detail" hidden></div>
+      <div id="users-list"></div>
+    </section>
   </main>
 
-  <nav id="tabbar"></nav>
-
-  <!-- Telegram Mini App SDK — БЕЗ него приложение не знает Telegram ID -->
+  <!-- Telegram Mini App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <!-- SDK Firebase грузит js/firebase.js динамически -->
-  <script src="js/firebase.js?v=16"></script>
-  <script src="js/logo.js?v=16"></script>
-  <script src="js/account.js?v=16"></script>
-  <script src="js/games-catalog.js?v=16"></script>
-  <script src="js/app.js?v=16"></script>
+  <script src="js/firebase.js?v=17"></script>
+  <script src="js/logo.js?v=17"></script>
+  <script src="js/account.js?v=17"></script>
+  <script src="js/app.js?v=17"></script>
 </body>
 </html>
