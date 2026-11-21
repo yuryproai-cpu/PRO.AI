@@ -1,9 +1,8 @@
 /* ============================================================
-   PRO.AI · js/account.js  —  v0.2.5
-   Отличие от v0.2.4: доступ к базе через Firebase.ready / Firebase.db
-   (js/firebase.js грузит SDK динамически и глобальную db не создаёт).
-   Мост — getDb(): ждёт готовность Firebase и возвращает Firestore.
-   Всё остальное (миграция, avatars/{uid}, offline-кэш, права) — как в v0.2.4.
+   PRO.AI · js/account.js  —  v0.2.6
+   Отличие от v0.2.5: вход через Cloudflare Worker (/api/auth →
+   signInWithCustomToken), записи в users только name/bio/hasAvatar
+   (совместимо с правилами v3.1), журнал миграции убран.
    ============================================================ */
 
 'use strict';
@@ -11,6 +10,8 @@
 /* ---------- Константы ---------- */
 
 const ADMIN_TELEGRAM_IDS = ['6476078926']; // права ТОЛЬКО здесь
+
+const WORKER_URL = 'https://pro-ai.yury-proai.workers.dev'; // охранник
 
 const LS_KEYS = ['proai_account', 'civ_profile']; // legacy, приоритет слева
 const LS_CACHE = 'proai_session_cache';           // offline last-known-good
@@ -43,6 +44,47 @@ function readLS(key) {
 
 function clampString(v, max) {
   return (typeof v === 'string') ? v.trim().slice(0, max) || null : null;
+}
+
+function getInitData() {
+  return (window.Telegram && Telegram.WebApp && Telegram.WebApp.initData) || '';
+}
+
+/* ---------- Вход через охранника ---------- */
+
+let authReady = null;
+function authViaWorker() {
+  if (!authReady) {
+    authReady = (async () => {
+      const initData = getInitData();
+      if (!initData) return { ok: false, reason: 'browser (только чтение)' };
+      await Firebase.ready; // firebase.auth должен быть загружен
+      const r = await fetch(WORKER_URL + '/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: initData })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.customToken) throw new Error(d.error || ('auth ' + r.status));
+      await firebase.auth().signInWithCustomToken(d.customToken);
+      return { ok: true, uid: d.uid, isAdmin: !!d.isAdmin };
+    })();
+    authReady.catch(() => { authReady = null; }); // неудача — можно повторить на след. старте
+  }
+  return authReady;
+}
+
+/* ---------- Запросы к охраннику (лайки/подписки — следующий спринт файла) ---------- */
+
+async function workerApi(path, body) {
+  const r = await fetch(WORKER_URL + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ initData: getInitData() }, body || {}))
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ('api ' + r.status));
+  return d;
 }
 
 /* ---------- uid и вход ---------- */
@@ -150,19 +192,18 @@ async function loadAccount() {
   return account;
 }
 
-/* ---------- Сохранение клиентских полей ---------- */
+/* ---------- Сохранение клиентских полей (только разрешённые правилами) ---------- */
 
 async function saveAccountFields(fields) {
   const db = await getDb();
   const uid = getUid();
 
-  const payload = { uid, updatedAt: nowServerTs() };
-  if ('name' in fields)       payload.name       = clampString(fields.name, NAME_MAX_LEN);
-  if ('bio' in fields)        payload.bio        = clampString(fields.bio, BIO_MAX_LEN);
-  if ('loginType' in fields)  payload.loginType  = fields.loginType || null;
-  if ('source' in fields)     payload.source     = fields.source || null;
-  if ('hasAvatar' in fields)  payload.hasAvatar  = !!fields.hasAvatar;
-  if ('migrated' in fields)   payload.migrated   = !!fields.migrated;
+  // Правила v3.1: write ONLY name/bio/hasAvatar — остальное клиент больше не пишет
+  const payload = {};
+  if ('name' in fields)      payload.name      = clampString(fields.name, NAME_MAX_LEN);
+  if ('bio' in fields)       payload.bio       = clampString(fields.bio, BIO_MAX_LEN);
+  if ('hasAvatar' in fields) payload.hasAvatar = !!fields.hasAvatar;
+  if (!Object.keys(payload).length) return false;
 
   await db.collection('users').doc(uid).set(payload, { merge: true });
 
@@ -274,7 +315,7 @@ async function migrateLocalToServer() {
   catch (e) { return { deferred: true, reason: 'network' }; }
 
   const server = serverSnap.exists ? serverSnap.data() : null;
-  const needProfile = !server || server.migrated !== true;
+  const needProfile = !server || !server.name && !server.bio && !server.hasAvatar;
   const needAvatar  = !!mapped.avatar && (!server || !server.hasAvatar);
 
   if (!needProfile && !needAvatar) { markPlatformMigrated(); return { done: true, alreadyMigrated: true }; }
@@ -284,24 +325,13 @@ async function migrateLocalToServer() {
     if (needProfile) {                    // домиграция аватара не перетирает name/bio
       await saveAccountFields({
         name: mapped.name,
-        bio: mapped.bio,
-        loginType: local.loginType || getLoginTypeHint(),
-        source: getSourceHint(),
-        migrated: true
+        bio: mapped.bio
       });
     }
   } catch (e) {
     console.warn('[account] миграция прервана, повторим на следующем запуске:', e);
     return { deferred: true, reason: 'write' };
   }
-
-  try {
-    await db.collection('users').doc(uid).collection('migration_log').doc('v0_2_5').set({
-      from: LS_KEYS.find(k => !!readLS(k)) || 'localStorage',
-      hadLocalAdminRole: local.role === 'admin' && !isAdminUid(uid),
-      at: nowServerTs()
-    }, { merge: true });
-  } catch (e) { /* журнал не критичен */ }
 
   markPlatformMigrated();
   return { done: true, migratedAvatar: needAvatar, migratedProfile: needProfile };
@@ -310,27 +340,34 @@ async function migrateLocalToServer() {
 /* ---------- Точка входа: вызывает js/app.js при старте ---------- */
 
 async function initAccount() {
-  const account = await loadAccount();
-  const migration = account.offline
-    ? { deferred: true, reason: 'offline' }
-    : await migrateLocalToServer();
+  // 1) Вход через охранника: initData → customToken → signInWithCustomToken
+  let auth = { ok: false, reason: 'no attempt' };
+  try {
+    auth = await authViaWorker();
+  } catch (e) {
+    console.warn('[account] вход через охранника не удался:', e && e.message);
+  }
 
-  // Гарантируем документ для новых пользователей (get + set — createdAt не трогаем)
+  // 2) Загрузка профиля (чтение работает и без входа)
+  const account = await loadAccount();
+
+  // 3) Право писать: сеть есть И вход прошёл (fail-closed)
+  account.writable = !account.offline && auth.ok;
+
+  // 4) Локальная миграция — только если можно писать
+  const migration = account.writable
+    ? await migrateLocalToServer()
+    : { deferred: true, reason: auth.ok ? 'offline' : 'read-only' };
+
+  // 5) Гарантируем документ для новых пользователей (name/bio/hasAvatar — только разрешённые поля)
   let createdNew = false;
-  if (!account.offline && !migration.deferred) {
+  if (account.writable && !migration.deferred) {
     try {
       const db = await getDb();
       const ref = db.collection('users').doc(account.uid);
       const snap = await ref.get();
       if (!snap.exists) {
-        await ref.set({
-          uid: account.uid,
-          source: account.source,
-          loginType: account.loginType,
-          migrated: false,
-          createdAt: nowServerTs(),
-          updatedAt: nowServerTs()
-        }, { merge: true });
+        await ref.set({ name: null, bio: null, hasAvatar: false });
         createdNew = true;
       }
     } catch (e) {
@@ -347,7 +384,9 @@ async function initAccount() {
 window.PROAI = window.PROAI || {};
 Object.assign(window.PROAI, {
   ADMIN_TELEGRAM_IDS,
+  WORKER_URL,
   initAccount, loadAccount, saveAccountFields, getDb,
   saveAvatarDataUrl, getAvatarDataUrl, fileToAvatarDataUrl,
-  isAdminUid, getUid, mapLegacyProfile
+  isAdminUid, getUid, mapLegacyProfile,
+  authViaWorker, workerApi
 });
