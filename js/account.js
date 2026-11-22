@@ -346,6 +346,7 @@ async function initAccount() {
     auth = await authViaWorker();
   } catch (e) {
     console.warn('[account] вход через охранника не удался:', e && e.message);
+          showToast('Диагностика входа: ' + (e && e.message));
   }
 
   // 2) Загрузка профиля (чтение работает и без входа)
