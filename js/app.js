@@ -87,13 +87,13 @@ function renderMenu() {
 
   addItem('🏠 Мой кабинет', () => showScreen('screen-cabinet'));
   addItem('⚙️ Управление аккаунтом', () => { renderManage(account); showScreen('screen-manage'); });
-
+  addItem('👥 Все кабинеты', () => openUsersScreen());
+  
   if (account.isAdmin) {
     const div = document.createElement('div');
     div.className = 'menu-divider';
     div.textContent = 'Админ';
     drawer.appendChild(div);
-    addItem('👥 Все кабинеты', () => openUsersScreen());
 
     const ctx = window.PROAI.adminContext;
     if (ctx && ctx.uid !== account.uid) {
