@@ -1,8 +1,10 @@
-"use strict";
+'use strict';
 
 // Модуль подключения к общей базе PRO.AI (Firebase Firestore).
 // SDK подгружается динамически с CDN — index.html менять не нужно.
 // Все остальные модули ждут Firebase.ready перед обращением к базе.
+// v0.2.6: добавлен модуль firebase-auth-compat.js — для входа через
+// охранника (signInWithCustomToken).
 
 const Firebase = (() => {
 
@@ -30,6 +32,7 @@ const Firebase = (() => {
   const SDK = "https://www.gstatic.com/firebasejs/10.14.1";
 
   const ready = loadScript(SDK + "/firebase-app-compat.js")
+    .then(() => loadScript(SDK + "/firebase-auth-compat.js"))
     .then(() => loadScript(SDK + "/firebase-firestore-compat.js"))
     .then(() => {
       firebase.initializeApp(firebaseConfig);
@@ -45,4 +48,5 @@ const Firebase = (() => {
     ready: ready,
     get db() { return _db; }
   };
+
 })();
