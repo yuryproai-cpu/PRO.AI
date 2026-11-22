@@ -87,8 +87,9 @@ function renderMenu() {
 
   addItem('🏠 Мой кабинет', () => showScreen('screen-cabinet'));
   addItem('⚙️ Управление аккаунтом', () => { renderManage(account); showScreen('screen-manage'); });
+
   addItem('👥 Все кабинеты', () => openUsersScreen());
-  
+
   if (account.isAdmin) {
     const div = document.createElement('div');
     div.className = 'menu-divider';
@@ -114,7 +115,6 @@ function menuVisible(v) {
   document.getElementById('menu-overlay').hidden = !v;
   document.getElementById('menu-drawer').hidden = !v;
 }
-
 const AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
   '<circle cx="50" cy="50" r="48" fill="#e0e0e0"/>' +
@@ -257,6 +257,7 @@ async function renderFriends(account) {
     box.innerHTML = '<p class="muted">Список недоступен: ' + escapeHtml(e && e.message) + '</p>';
   }
 }
+
 async function likeUser(targetUid, btn) {
   const me = getSessionAccount();
   if (!me) return;
@@ -265,21 +266,18 @@ async function likeUser(targetUid, btn) {
   try {
     const db = await getDb();
     const already = await db.collection('likes').doc(targetUid + '__' + me.uid).get();
-    if (already.exists) { showToast('Ты уже ставил лайк этому пользователю'); return; }
-    await workerApi('/api/like', { targetUid: targetUid });
-    me.likesCount = (me.likesCount || 0) + 1;
-    showToast('Лайк доставлен ❤️');
-    if (btn) { btn.disabled = true; btn.textContent = '❤️ Лайк поставлен'; }
-    renderCabinet(me);
-  } catch (e) { alert('Лайк не прошёл: ' + e.message); }
-}
-
-async function unlikeUser(targetUid) {
-  const me = getSessionAccount();
-  if (!me || me.writable === false) return;
-  try {
-    await workerApi('/api/unlike', { targetUid: targetUid });
-    me.likesCount = Math.max(0, (me.likesCount || 0) - 1);
+    if (already.exists) {
+      await workerApi('/api/unlike', { targetUid: targetUid });
+      me.likesCount = Math.max(0, (me.likesCount || 0) - 1);
+      showToast('Лайк снят');
+      if (btn) btn.textContent = '❤️ Лайк';
+    } else {
+      await workerApi('/api/like', { targetUid: targetUid });
+      me.likesCount = (me.likesCount || 0) + 1;
+      showToast('Лайк доставлен ❤️');
+      if (btn) btn.textContent = '💔 Снять лайк';
+    }
+    if (btn) btn.disabled = false;
     renderCabinet(me);
   } catch (e) { alert('Не получилось: ' + e.message); }
 }
@@ -307,7 +305,6 @@ async function toggleFollow(targetUid, btn) {
     renderCabinet(me);
   } catch (e) { alert('Не получилось: ' + e.message); }
 }
-
 function renderManage(account) {
   const body = document.getElementById('manage-body');
   if (!body) return;
@@ -471,9 +468,7 @@ async function openUserDetail(uid) {
 
       const likeBtn = document.createElement('button');
       likeBtn.className = 'btn btn-secondary';
-      likeBtn.textContent = '❤️ Лайк';
-      likeBtn.disabled = likeSnap.exists;
-      if (likeSnap.exists) likeBtn.textContent = '❤️ Лайк поставлен';
+      likeBtn.textContent = likeSnap.exists ? '💔 Снять лайк' : '❤️ Лайк';
       likeBtn.addEventListener('click', () => likeUser(uid, likeBtn));
       row.appendChild(likeBtn);
 
@@ -495,6 +490,7 @@ async function openUserDetail(uid) {
     skeleton(detail, 'Не удалось открыть кабинет: ' + (e && e.message));
   }
 }
+
 async function grantRole(uid) {
   const input = prompt('Роль (guest / user / developer):', 'user');
   if (input === null) return;
