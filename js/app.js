@@ -64,6 +64,7 @@ async function splashWait() {
   }
   finish();
 }
+
 function renderMenu() {
   const drawer = document.getElementById('menu-drawer');
   if (!drawer) return;
@@ -221,13 +222,14 @@ async function onChangeAvatar(file) {
     renderCabinet(account);
   } catch (e) { alert('Не удалось загрузить аватар: ' + e.message); }
 }
+
 async function renderFriends(account) {
   const box = document.getElementById('friends-list');
   if (!box) return;
   box.innerHTML = '<p class="muted">Загрузка…</p>';
   try {
     const db = await getDb();
-    const snap = await db.collection('follows').where('from', '==', account.uid).limit(12).get();
+    const snap = await db.collection('follows').where('fromUid', '==', account.uid).limit(12).get();
     box.innerHTML = '';
     if (snap.empty) {
       box.innerHTML = '<p class="muted">Пока никого. Открой чужой кабинет и добавь человека ✚</p>';
@@ -237,9 +239,9 @@ async function renderFriends(account) {
       const f = doc.data();
       let name = '(без имени)', liked = false;
       try {
-        const u = await db.collection('users').doc(f.to).get();
+        const u = await db.collection('users').doc(f.toUid).get();
         if (u.exists) name = u.data().name || name;
-        const back = await db.collection('follows').doc(f.to + '__' + account.uid).get();
+        const back = await db.collection('follows').doc(f.toUid + '__' + account.uid).get();
         liked = back.exists;
       } catch (e) {}
       const row = document.createElement('div');
@@ -248,54 +250,56 @@ async function renderFriends(account) {
                       (liked ? '<span class="badge badge-admin">друг</span>'
                              : '<span class="badge">подписка</span>');
       row.querySelector('.friend-name').textContent = name;
-      row.addEventListener('click', () => openUserDetail(f.to));
+      row.addEventListener('click', () => openUserDetail(f.toUid));
       box.appendChild(row);
     }
   } catch (e) {
     box.innerHTML = '<p class="muted">Список недоступен: ' + escapeHtml(e && e.message) + '</p>';
   }
 }
-
 async function likeUser(targetUid, btn) {
   const me = getSessionAccount();
   if (!me) return;
   if (targetUid === me.uid) { showToast('Себе лайк не поставить 🙂'); return; }
+  if (me.writable === false) { showToast('Открой PRO.AI через Telegram 🙂'); return; }
   try {
     const db = await getDb();
-    const ref = db.collection('likes').doc(targetUid + '__' + me.uid);
-    const already = await ref.get();
+    const already = await db.collection('likes').doc(targetUid + '__' + me.uid).get();
     if (already.exists) { showToast('Ты уже ставил лайк этому пользователю'); return; }
-    await ref.set({ to: targetUid, from: me.uid, at: firebase.firestore.FieldValue.serverTimestamp() });
-    await db.collection('users').doc(targetUid).set(
-      { likesCount: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+    await workerApi('/api/like', { targetUid: targetUid });
+    me.likesCount = (me.likesCount || 0) + 1;
     showToast('Лайк доставлен ❤️');
     if (btn) { btn.disabled = true; btn.textContent = '❤️ Лайк поставлен'; }
+    renderCabinet(me);
   } catch (e) { alert('Лайк не прошёл: ' + e.message); }
+}
+
+async function unlikeUser(targetUid) {
+  const me = getSessionAccount();
+  if (!me || me.writable === false) return;
+  try {
+    await workerApi('/api/unlike', { targetUid: targetUid });
+    me.likesCount = Math.max(0, (me.likesCount || 0) - 1);
+    renderCabinet(me);
+  } catch (e) { alert('Не получилось: ' + e.message); }
 }
 
 async function toggleFollow(targetUid, btn) {
   const me = getSessionAccount();
   if (!me) return;
   if (targetUid === me.uid) return;
+  if (me.writable === false) { showToast('Открой PRO.AI через Telegram 🙂'); return; }
   try {
     const db = await getDb();
     const ref = db.collection('follows').doc(me.uid + '__' + targetUid);
     const doc = await ref.get();
     if (doc.exists) {
-      await ref.delete();
-      await db.collection('users').doc(me.uid).set(
-        { followingCount: firebase.firestore.FieldValue.increment(-1) }, { merge: true });
-      await db.collection('users').doc(targetUid).set(
-        { followersCount: firebase.firestore.FieldValue.increment(-1) }, { merge: true });
+      await workerApi('/api/unfollow', { targetUid: targetUid });
       me.followingCount = Math.max(0, (me.followingCount || 0) - 1);
       showToast('Подписка отменена');
       if (btn) btn.textContent = '✚ Добавить в друзья';
     } else {
-      await ref.set({ from: me.uid, to: targetUid, at: firebase.firestore.FieldValue.serverTimestamp() });
-      await db.collection('users').doc(me.uid).set(
-        { followingCount: firebase.firestore.FieldValue.increment(1) }, { merge: true });
-      await db.collection('users').doc(targetUid).set(
-        { followersCount: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+      await workerApi('/api/follow', { targetUid: targetUid });
       me.followingCount = (me.followingCount || 0) + 1;
       showToast('Добавлено в друзья ✚');
       if (btn) btn.textContent = '✓ Вы подписаны';
@@ -333,6 +337,7 @@ function renderManage(account) {
   addRow('Подписчики', String(account.followersCount || 0));
   addRow('Опыт (XP)', String(account.xp || 0));
   addRow('Сервер', account.offline ? 'нет связи' : 'подключен');
+  addRow('Запись', account.writable === false ? 'только чтение' : 'открыта');
   body.appendChild(st);
 
   const g = document.createElement('div');
@@ -406,6 +411,7 @@ async function loadUsersList() {
     });
   } catch (e) { skeleton(list, 'Не удалось загрузить: ' + (e && e.message)); }
 }
+
 async function openUserDetail(uid) {
   const detail = document.getElementById('users-detail');
   const list = document.getElementById('users-list');
@@ -418,15 +424,15 @@ async function openUserDetail(uid) {
   const me = getSessionAccount();
   try {
     const db = await getDb();
-    const [uSnap, privSnap, avSnap, likeSnap, followSnap] = await Promise.all([
+    const [uSnap, avSnap, likeSnap, followSnap] = await Promise.all([
       db.collection('users').doc(uid).get(),
-      db.collection('users_private').doc(uid).get(),
       db.collection('avatars').doc(uid).get(),
       db.collection('likes').doc(uid + '__' + me.uid).get(),
       db.collection('follows').doc(me.uid + '__' + uid).get()
     ]);
+    const privSnap = await db.collection('users_private').doc(uid).get().catch(() => null);
     const u = uSnap.exists ? uSnap.data() : {};
-    const priv = privSnap.exists ? privSnap.data() : {};
+    const priv = (privSnap && privSnap.exists) ? privSnap.data() : {};
 
     const card = document.createElement('div');
     card.className = 'glass';
@@ -454,7 +460,7 @@ async function openUserDetail(uid) {
       ' · уровень ' + (1 + Math.floor((u.likesCount || 0) / 10)) +
       ' · подписчики ' + (u.followersCount || 0) +
       ' · подписки ' + (u.followingCount || 0) +
-      ' · роль: ' + (priv.role || 'guest') +
+      (priv.role ? ' · роль: ' + priv.role : '') +
       (priv.tariff ? ' · тариф: ' + priv.tariff : '') +
       (reg ? ' · с ' + reg : '');
     card.appendChild(info);
@@ -489,27 +495,24 @@ async function openUserDetail(uid) {
     skeleton(detail, 'Не удалось открыть кабинет: ' + (e && e.message));
   }
 }
-
 async function grantRole(uid) {
   const input = prompt('Роль (guest / user / developer):', 'user');
   if (input === null) return;
   const role = input.trim().toLowerCase();
   if (!['guest', 'user', 'developer'].includes(role)) { alert('Такой роли нет'); return; }
   try {
-    const db = await getDb();
-    await db.collection('users_private').doc(uid).set({ role }, { merge: true });
+    await workerApi('/api/admin/set-role', { targetUid: uid, role: role });
     showToast('Роль выдана: ' + role);
   } catch (e) { alert('Не получилось: ' + e.message); }
 }
 
 async function grantTariff(uid) {
-  const input = prompt('Тариф (free / book / video / pro):', 'free');
+  const input = prompt('Тариф (book / video / pro):', 'book');
   if (input === null) return;
   const tariff = input.trim().toLowerCase();
-  if (!['free', 'book', 'video', 'pro'].includes(tariff)) { alert('Такого тарифа нет'); return; }
+  if (!['book', 'video', 'pro'].includes(tariff)) { alert('Такого тарифа нет'); return; }
   try {
-    const db = await getDb();
-    await db.collection('users_private').doc(uid).set({ tariff }, { merge: true });
+    await workerApi('/api/admin/set-tariff', { targetUid: uid, tariff: tariff });
     showToast('Тариф выдан: ' + tariff);
   } catch (e) { alert('Не получилось: ' + e.message); }
 }
@@ -517,13 +520,10 @@ async function grantTariff(uid) {
 async function deleteUser(uid, name) {
   const me = getSessionAccount();
   if (uid === me.uid) { alert('Свой аккаунт так удалить нельзя — защита от самого себя 🙂'); return; }
-  if (!confirm('Удалить аккаунт ' + (name || uid) + '? Действие необратимо.')) return;
+  if (!confirm('Скрыть аккаунт ' + (name || uid) + '? Пользователь потеряет вход и будет показан как [удалён].')) return;
   try {
-    const db = await getDb();
-    await db.collection('users').doc(uid).delete();
-    await db.collection('users_private').doc(uid).delete().catch(() => {});
-    await db.collection('avatars').doc(uid).delete().catch(() => {});
-    showToast('Аккаунт удалён');
+    await workerApi('/api/admin/delete-user', { targetUid: uid });
+    showToast('Аккаунт скрыт (мягкое удаление)');
     window.PROAI.adminContext = null;
     openUsersScreen();
   } catch (e) { alert('Не получилось: ' + e.message); }
