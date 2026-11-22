@@ -1,20 +1,10 @@
-/* ============================================================
-   PRO.AI · js/account.js  —  v0.2.6
-   Отличие от v0.2.5: вход через Cloudflare Worker (/api/auth →
-   signInWithCustomToken), записи в users только name/bio/hasAvatar
-   (совместимо с правилами v3.1), журнал миграции убран.
-   ============================================================ */
-
 'use strict';
 
-/* ---------- Константы ---------- */
+const ADMIN_TELEGRAM_IDS = ['6476078926'];
+const WORKER_URL = 'https://pro-ai.yury-proai.workers.dev';
 
-const ADMIN_TELEGRAM_IDS = ['6476078926']; // права ТОЛЬКО здесь
-
-const WORKER_URL = 'https://pro-ai.yury-proai.workers.dev'; // охранник
-
-const LS_KEYS = ['proai_account', 'civ_profile']; // legacy, приоритет слева
-const LS_CACHE = 'proai_session_cache';           // offline last-known-good
+const LS_KEYS = ['proai_account', 'civ_profile'];
+const LS_CACHE = 'proai_session_cache';
 const LS_UID_KEY = 'proai_browser_uid';
 
 const AVATAR_MAX_PX = 256;
@@ -24,14 +14,10 @@ const AVATAR_MAX_INPUT_BYTES = 10 * 1024 * 1024;
 const NAME_MAX_LEN = 20;
 const BIO_MAX_LEN = 150;
 
-/* ---------- Мост к Firebase (js/firebase.js) ---------- */
-
 async function getDb() {
-  await Firebase.ready;      // ждём динамическую загрузку SDK
+  await Firebase.ready;
   return Firebase.db;
 }
-
-/* ---------- Утилиты ---------- */
 
 function nowServerTs() {
   return firebase.firestore.FieldValue.serverTimestamp();
@@ -50,15 +36,13 @@ function getInitData() {
   return (window.Telegram && Telegram.WebApp && Telegram.WebApp.initData) || '';
 }
 
-/* ---------- Вход через охранника ---------- */
-
 let authReady = null;
 function authViaWorker() {
   if (!authReady) {
     authReady = (async () => {
       const initData = getInitData();
       if (!initData) return { ok: false, reason: 'browser (только чтение)' };
-      await Firebase.ready; // firebase.auth должен быть загружен
+      await Firebase.ready;
       const r = await fetch(WORKER_URL + '/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,12 +53,10 @@ function authViaWorker() {
       await firebase.auth().signInWithCustomToken(d.customToken);
       return { ok: true, uid: d.uid, isAdmin: !!d.isAdmin };
     })();
-    authReady.catch(() => { authReady = null; }); // неудача — можно повторить на след. старте
+    authReady.catch(() => { authReady = null; });
   }
   return authReady;
 }
-
-/* ---------- Запросы к охраннику (лайки/подписки — следующий спринт файла) ---------- */
 
 async function workerApi(path, body) {
   const r = await fetch(WORKER_URL + path, {
@@ -87,11 +69,9 @@ async function workerApi(path, body) {
   return d;
 }
 
-/* ---------- uid и вход ---------- */
-
 function getUid() {
   if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe?.user?.id) {
-    return String(Telegram.WebApp.initDataUnsafe.user.id);      // telegram_id, НЕ username
+    return String(Telegram.WebApp.initDataUnsafe.user.id);
   }
   if (firebase.auth && firebase.auth().currentUser) {
     return firebase.auth().currentUser.uid;
@@ -120,8 +100,6 @@ function getLoginTypeHint() {
 function isAdminUid(uid) {
   return ADMIN_TELEGRAM_IDS.includes(String(uid));
 }
-
-/* ---------- Профиль: дефолты и загрузка ---------- */
 
 function defaultProfile(uid) {
   return {
@@ -166,9 +144,8 @@ async function loadAccount() {
     console.warn('[account] users_private недоступен:', e && e.message);
   }
 
-  if (!usersOk) server = readLS(LS_CACHE);   // offline last-known-good
+  if (!usersOk) server = readLS(LS_CACHE);
 
-  // users_private нет → дефолты; клиент его НЕ создаёт
   const account = {
     ...base,
     ...(server || {}),
@@ -179,7 +156,6 @@ async function loadAccount() {
     badges: priv?.badges ?? []
   };
 
-  // Права по константе; чужой 'admin' из базы понижаем
   account.isAdmin = isAdminUid(uid);
   if (account.isAdmin) {
     account.role = 'admin';
@@ -192,13 +168,11 @@ async function loadAccount() {
   return account;
 }
 
-/* ---------- Сохранение клиентских полей (только разрешённые правилами) ---------- */
-
 async function saveAccountFields(fields) {
   const db = await getDb();
   const uid = getUid();
 
-  // Правила v3.1: write ONLY name/bio/hasAvatar — остальное клиент больше не пишет
+  // Правила v3.1: пишем ТОЛЬКО name/bio/hasAvatar
   const payload = {};
   if ('name' in fields)      payload.name      = clampString(fields.name, NAME_MAX_LEN);
   if ('bio' in fields)       payload.bio       = clampString(fields.bio, BIO_MAX_LEN);
@@ -213,8 +187,6 @@ async function saveAccountFields(fields) {
   } catch (e) {}
   return true;
 }
-
-/* ---------- Аватар: avatars/{uid} ---------- */
 
 async function saveAvatarDataUrl(dataUrl) {
   const db = await getDb();
@@ -268,8 +240,6 @@ function fileToAvatarDataUrl(file) {
   });
 }
 
-/* ---------- Миграция localStorage → Firestore ---------- */
-
 function mapLegacyProfile(raw) {
   const name = clampString(
     raw.nickname ?? raw.nickName ?? raw.userName ?? raw.name ?? raw.login ?? raw.playerName,
@@ -321,8 +291,8 @@ async function migrateLocalToServer() {
   if (!needProfile && !needAvatar) { markPlatformMigrated(); return { done: true, alreadyMigrated: true }; }
 
   try {
-    if (needAvatar) await saveAvatarDataUrl(mapped.avatar);   // аватар первым
-    if (needProfile) {                    // домиграция аватара не перетирает name/bio
+    if (needAvatar) await saveAvatarDataUrl(mapped.avatar);
+    if (needProfile) {
       await saveAccountFields({
         name: mapped.name,
         bio: mapped.bio
@@ -337,30 +307,22 @@ async function migrateLocalToServer() {
   return { done: true, migratedAvatar: needAvatar, migratedProfile: needProfile };
 }
 
-/* ---------- Точка входа: вызывает js/app.js при старте ---------- */
-
 async function initAccount() {
-  // 1) Вход через охранника: initData → customToken → signInWithCustomToken
   let auth = { ok: false, reason: 'no attempt' };
   try {
     auth = await authViaWorker();
   } catch (e) {
     console.warn('[account] вход через охранника не удался:', e && e.message);
-          showToast('Диагностика входа: ' + (e && e.message));
+    if (e && e.message === 'account deleted') showToast('Этот аккаунт удалён');
   }
 
-  // 2) Загрузка профиля (чтение работает и без входа)
   const account = await loadAccount();
-
-  // 3) Право писать: сеть есть И вход прошёл (fail-closed)
   account.writable = !account.offline && auth.ok;
 
-  // 4) Локальная миграция — только если можно писать
   const migration = account.writable
     ? await migrateLocalToServer()
     : { deferred: true, reason: auth.ok ? 'offline' : 'read-only' };
 
-  // 5) Гарантируем документ для новых пользователей (name/bio/hasAvatar — только разрешённые поля)
   let createdNew = false;
   if (account.writable && !migration.deferred) {
     try {
@@ -379,8 +341,6 @@ async function initAccount() {
   const needsReread = (!!migration.done && !migration.alreadyMigrated) || createdNew;
   return { account: needsReread ? await loadAccount() : account, migration };
 }
-
-/* ---------- Экспорт ---------- */
 
 window.PROAI = window.PROAI || {};
 Object.assign(window.PROAI, {
