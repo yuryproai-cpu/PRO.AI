@@ -1,6 +1,6 @@
 'use strict';
 
-// app.js v1.0 — движок PRO.AI (чистый лист, 23.11.2026)
+// app.js v1.1 — движок PRO.AI (быстрый старт, без сплэш-скрипта и звука)
 // Ты — admin (решает охранник), все остальные — user.
 // Роли moderator/developer выдаются кнопкой из админ-меню.
 
@@ -46,20 +46,8 @@ function levelInfo(account) {
 async function splashWait() {
   const splash = document.getElementById('splash');
   if (!splash) return;
-  let done = false, timer = null;
-  const finish = () => {
-    if (done) return;
-    done = true;
-    if (timer) clearTimeout(timer);
-    splash.hidden = true;
-  };
-  timer = setTimeout(finish, 4500);
-  splash.addEventListener('click', finish, { once: true });
-  if (typeof window.initSplash === 'function') {
-    try { window.initSplash(); } catch (e) {}
-  }
-  await new Promise(r => setTimeout(r, 4500));
-  finish();
+  await new Promise(r => setTimeout(r, 600));
+  splash.hidden = true;
 }
 
 function renderMenu() {
@@ -162,14 +150,6 @@ function renderCabinet(account) {
 
   const set = (id, v) => { const el = sc.querySelector('#' + id); if (el) el.textContent = v; };
   set('likes-num', String(account.likesCount || 0));
-  set('awards-num', '0');
-  set('level-num', String(li.level));
-  set('games-num', '0');
-  set('learn-num', '—');
-  set('xp-num', '—');
-  const xpBar = sc.querySelector('#xp-progress');
-  if (xpBar) xpBar.style.width = '0%';
-  set('rating-num', '—');
 
   set('cnt-following', String(account.followingCount || 0));
   set('cnt-followers', String(account.followersCount || 0));
@@ -326,7 +306,7 @@ function renderManage(account) {
   addRow('Подписчики', String(account.followersCount || 0));
   addRow('Сервер', account.offline ? 'нет связи' : 'подключен');
   addRow('Запись', account.writable === false ? 'только чтение' : 'открыта');
-  addRow('Версия', 'v1.0');
+  addRow('Версия', 'v1.1');
   body.appendChild(st);
 }
 
