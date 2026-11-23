@@ -1,6 +1,6 @@
 'use strict';
 
-// app.js v1.3 — движок PRO.AI (профиль + друзья, без плиток-заглушек)
+// app.js v1.4 — движок PRO.AI (лайки — строкой в профиле, как в ленте)
 // Ты — admin (решает охранник), все остальные — user.
 // Роли moderator/developer выдаются кнопкой из админ-меню.
 
@@ -144,6 +144,8 @@ function renderCabinet(account) {
 }
 
 function setCounts(account) {
+  const lk = document.querySelector('#cnt-likes');
+  if (lk) lk.textContent = String(account.likesCount || 0);
   const fw = document.querySelector('#cnt-following');
   if (fw) fw.textContent = String(account.followingCount || 0);
   const fr = document.querySelector('#cnt-followers');
@@ -299,7 +301,7 @@ function renderManage(account) {
   addRow('Подписчики', String(account.followersCount || 0));
   addRow('Сервер', account.offline ? 'нет связи' : 'подключен');
   addRow('Запись', account.writable === false ? 'только чтение' : 'открыта');
-  addRow('Версия', 'v1.3');
+  addRow('Версия', 'v1.4');
   body.appendChild(st);
 }
 
