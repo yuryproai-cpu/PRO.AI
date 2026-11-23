@@ -1,6 +1,6 @@
 'use strict';
 
-// app.js v1.2 — движок PRO.AI (без дублирования уровня и шкалы)
+// app.js v1.3 — движок PRO.AI (профиль + друзья, без плиток-заглушек)
 // Ты — admin (решает охранник), все остальные — user.
 // Роли moderator/developer выдаются кнопкой из админ-меню.
 
@@ -41,13 +41,6 @@ function showToast(text, ms = 3000) {
 function levelInfo(account) {
   const likes = account.likesCount || 0;
   return { level: 1 + Math.floor(likes / 10) };
-}
-
-async function splashWait() {
-  const splash = document.getElementById('splash');
-  if (!splash) return;
-  await new Promise(r => setTimeout(r, 600));
-  splash.hidden = true;
 }
 
 function renderMenu() {
@@ -146,13 +139,15 @@ function renderCabinet(account) {
   const lv = sc.querySelector('#cabinet-level');
   if (lv) lv.textContent = 'Уровень ' + li.level;
 
-  const set = (id, v) => { const el = sc.querySelector('#' + id); if (el) el.textContent = v; };
-  set('likes-num', String(account.likesCount || 0));
-
-  set('cnt-following', String(account.followingCount || 0));
-  set('cnt-followers', String(account.followersCount || 0));
-
+  setCounts(account);
   renderFriends(account);
+}
+
+function setCounts(account) {
+  const fw = document.querySelector('#cnt-following');
+  if (fw) fw.textContent = String(account.followingCount || 0);
+  const fr = document.querySelector('#cnt-followers');
+  if (fr) fr.textContent = String(account.followersCount || 0);
 }
 
 async function onEditName() {
@@ -304,7 +299,7 @@ function renderManage(account) {
   addRow('Подписчики', String(account.followersCount || 0));
   addRow('Сервер', account.offline ? 'нет связи' : 'подключен');
   addRow('Запись', account.writable === false ? 'только чтение' : 'открыта');
-  addRow('Версия', 'v1.2');
+  addRow('Версия', 'v1.3');
   body.appendChild(st);
 }
 
@@ -464,10 +459,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('.avatar-input')?.addEventListener('change', e => {
     if (e.target.files?.[0]) onChangeAvatar(e.target.files[0]);
   });
-  document.getElementById('tile-stats')?.addEventListener('click', () => {
-    const a = getSessionAccount();
-    if (a) { renderManage(a); showScreen('screen-manage'); }
-  });
   document.getElementById('manage-back')?.addEventListener('click', () => showScreen('screen-cabinet'));
   document.getElementById('users-back')?.addEventListener('click', () => showScreen('screen-cabinet'));
 });
@@ -491,8 +482,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       return offlineSession('crash');
     }
   })();
-
-  await splashWait();
 
   let account = await Promise.race([
     sessionPromise,
