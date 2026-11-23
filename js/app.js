@@ -3,6 +3,8 @@
 window.PROAI = window.PROAI || {};
 window.PROAI.adminContext = null;
 
+const APP_VERSION = 'v21.02';
+
 function getSessionAccount() {
   return window.PROAI.session?.account || null;
 }
@@ -115,6 +117,7 @@ function menuVisible(v) {
   document.getElementById('menu-overlay').hidden = !v;
   document.getElementById('menu-drawer').hidden = !v;
 }
+
 const AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
   '<circle cx="50" cy="50" r="48" fill="#e0e0e0"/>' +
@@ -131,7 +134,6 @@ function myProposalsCount(account) {
     return GamesCatalog.getStudent().filter(g => g.author === account.name).length;
   } catch (e) { return 0; }
 }
-
 function renderCabinet(account) {
   const sc = document.getElementById('screen-cabinet');
   if (!sc) return;
@@ -335,6 +337,7 @@ function renderManage(account) {
   addRow('Опыт (XP)', String(account.xp || 0));
   addRow('Сервер', account.offline ? 'нет связи' : 'подключен');
   addRow('Запись', account.writable === false ? 'только чтение' : 'открыта');
+  addRow('Версия', APP_VERSION);
   body.appendChild(st);
 
   const g = document.createElement('div');
