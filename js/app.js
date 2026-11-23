@@ -1,6 +1,6 @@
 'use strict';
 
-// app.js v1.1 — движок PRO.AI (быстрый старт, без сплэш-скрипта и звука)
+// app.js v1.2 — движок PRO.AI (без дублирования уровня и шкалы)
 // Ты — admin (решает охранник), все остальные — user.
 // Роли moderator/developer выдаются кнопкой из админ-меню.
 
@@ -40,7 +40,7 @@ function showToast(text, ms = 3000) {
 
 function levelInfo(account) {
   const likes = account.likesCount || 0;
-  return { level: 1 + Math.floor(likes / 10), progress: (likes % 10) / 10 };
+  return { level: 1 + Math.floor(likes / 10) };
 }
 
 async function splashWait() {
@@ -145,8 +145,6 @@ function renderCabinet(account) {
   const li = levelInfo(account);
   const lv = sc.querySelector('#cabinet-level');
   if (lv) lv.textContent = 'Уровень ' + li.level;
-  const lp = sc.querySelector('#cabinet-level-progress');
-  if (lp) lp.style.width = Math.round(li.progress * 100) + '%';
 
   const set = (id, v) => { const el = sc.querySelector('#' + id); if (el) el.textContent = v; };
   set('likes-num', String(account.likesCount || 0));
@@ -306,7 +304,7 @@ function renderManage(account) {
   addRow('Подписчики', String(account.followersCount || 0));
   addRow('Сервер', account.offline ? 'нет связи' : 'подключен');
   addRow('Запись', account.writable === false ? 'только чтение' : 'открыта');
-  addRow('Версия', 'v1.1');
+  addRow('Версия', 'v1.2');
   body.appendChild(st);
 }
 
