@@ -1,7 +1,41 @@
 /* =====================================================
-   PRO.AI — app.js (v1, финальная сборка)
+   PRO.AI — app.js (v1.3, диагностическая сборка)
    ===================================================== */
 'use strict';
+
+/* ---------- Чёрный ящик: ошибки видны на экране ----------
+   Временно, для диагностики запуска. Убрать после отладки. */
+
+function showFatal(msg) {
+  let box = document.getElementById('diag-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'diag-box';
+    box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;' +
+      'background:#b00020;color:#fff;font:12px monospace;padding:8px;white-space:pre-wrap;';
+    document.body.appendChild(box);
+  }
+  box.textContent += msg + '\n';
+}
+window.addEventListener('error', (e) =>
+  showFatal('ОШИБКА: ' + e.message + ' (строка ' + e.lineno + ')'));
+window.addEventListener('unhandledrejection', (e) =>
+  showFatal('СЕТЬ: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)));
+
+function splashStatus(msg) {
+  const sp = document.getElementById('screen-splash');
+  if (!sp) return;
+  let st = document.getElementById('splash-status');
+  if (!st) {
+    st = document.createElement('p');
+    st.id = 'splash-status';
+    st.style.cssText = 'position:absolute;bottom:12px;left:0;right:0;text-align:center;' +
+      'color:#fff;font:12px sans-serif;margin:0;';
+    sp.style.position = 'relative';
+    sp.appendChild(st);
+  }
+  st.textContent = msg;
+}
 
 /* ---------- Единая конфигурация ---------- */
 
@@ -130,10 +164,13 @@ async function init() {
   }
 
   show('screen-splash');
+  splashStatus('Проверяем вход...');
 
   try {
     await loadMe();
+    splashStatus('Вход подтверждён, открываем...');
   } catch (e) {
+    splashStatus('Сервер недоступен: ' + e.message);
     state.profile = null;
     state.role = 'user';
   }
@@ -708,12 +745,7 @@ function bindEvents() {
 
   $('land-save').addEventListener('click', saveLanding);
 
-  // После входа под админом — подгружаем админ-экраны при их открытии
-  $('control-menu').addEventListener('click', () => {});
-  document.addEventListener('click', (e) => {
-    if (e.target && e.target.id === 'screen-landing-edit') loadLandingEditor();
-    if (e.target && e.target.id === 'screen-review-check') loadReviewQueue();
-  });
+  showFatal('JS ЗАГРУЗИЛСЯ ЦЕЛИКОМ, версия v1.3');
 }
 
 /* ---------- Запуск ---------- */
