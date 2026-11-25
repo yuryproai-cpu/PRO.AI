@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+  <title>PRO.AI</title>
+  <!-- SDK Telegram Mini App -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Кэш-протокол: каждая правка CSS/JS = +1 к v (правило №2 проекта) -->
+  <link rel="stylesheet" href="styles.css?v=1">
+  <noscript>
+    <div style="padding:24px;text-align:center">Включите JavaScript для работы приложения</div>
+  </noscript>
+</head>
+<body>
+
+  <!-- Сплэш: закрывается из app.js после проверки
+       «кабинет активирован?» (логин заполнен — ответ 19) -->
+  <div id="splash">
+    <div class="splash-logo">PRO.AI</div>
+  </div>
+
+  <!-- ============================================
+       ЭКРАН 9: ЛЕНДИНГ-ВИТРИНА (первый экран)
+       Показывается, если кабинет НЕ активирован
+       (уникальный логин не заполнен — ответ 19)
+       Решение по правке №14: заголовки блоков фиксированные,
+       админ через редактор меняет только тексты и картинки.
+       ============================================ -->
+  <section id="screen-landing" class="screen">
+
+    <!-- Шапка лендинга -->
+    <header class="landing-header">
+      <div class="logo">PRO.AI</div>
+    </header>
+
+    <!-- Блок 1: Коротко о проекте -->
+    <div class="block" id="landing-about">
+      <h2>О проекте</h2>
+      <p id="landing-about-text"><!-- текст заполняет админ через редактор лендинга --></p>
+      <button class="btn btn-primary" id="landing-cta-top">Создать кабинет</button>
+    </div>
+
+    <!-- Блок 2: Интервью от админа.
+         Если у блока нет ни фото, ни текста — app.js скрывает его целиком -->
+    <div class="block" id="landing-interview" hidden>
+      <h2>Интервью от автора</h2>
+      <img id="landing-interview-photo" class="interview-photo" alt="Фото автора" hidden>
+      <p id="landing-interview-text"><!-- текст заполняет админ --></p>
+    </div>
+
+    <!-- Блок 3: Наши сделанные продукты -->
+    <div class="block" id="landing-products">
+      <h2>Наши продукты</h2>
+      <div id="landing-products-list"><!-- игры, приложения и т.д. --></div>
+    </div>
+
+    <!-- Блок 4: Отзывы (не редактируется админом).
+         ПРАВИЛО №1: контент отзывов рендерится только через
+         textContent/createElement — innerHTML запрещён -->
+    <div class="block" id="landing-reviews">
+      <h2>Отзывы</h2>
+      <div id="landing-reviews-list">
+        <p class="empty-state">Ещё никто не оставил свой отзыв</p>
+      </div>
+    </div>
+
+    <!-- Блок 5: Как это работает (3 шага) -->
+    <div class="block" id="landing-how">
+      <h2>Как это работает</h2>
+      <ol class="steps">
+        <li>Зайди в приложение</li>
+        <li>Заведи кабинет — придумай уникальный логин</li>
+        <li>Найди друзей в ленте и начни общение</li>
+      </ol>
+    </div>
+
+    <!-- Блок 6: Частые вопросы (FAQ) -->
+    <div class="block" id="landing-faq">
+      <h2>Частые вопросы</h2>
+      <div id="landing-faq-list"><!-- редактирует админ --></div>
+    </div>
+
+    <!-- Блок 7: Повторная кнопка -->
+    <div class="block center">
+      <button class="btn btn-primary" id="landing-cta-bottom">Создать кабинет</button>
+    </div>
+
+    <!-- Блок 8: Политика и правила.
+         Реальные href; открытие — через Telegram.WebApp.openLink
+         в app.js (не полагаемся на поведение ссылок в WebView) -->
+    <div class="block footer-links">
+      <a href="/policy.html" id="link-policy">Политика конфиденциальности</a>
+      <a href="/rules.html" id="link-rules">Правила приложения</a>
+    </div>
+
+    <!-- Блок 9: Контакты и социальные сети -->
+    <footer class="block" id="landing-contacts">
+      <div id="landing-contacts-list"><!-- редактирует админ --></div>
+    </footer>
+
+  </section>
+
+  <!-- ============================================
+       ЭКРАН 1: МОЙ КАБИНЕТ
+       Одинаковый у всех; кнопка управления справа —
+       только по роли, подтверждённой на сервере
+       ============================================ -->
+  <section id="screen-cabinet" class="screen" hidden>
+
+    <!-- Шапка -->
+    <header class="app-header">
+      <button class="icon-btn" id="btn-left-menu" aria-label="Меню">☰</button>
+      <div class="logo">PRO.AI</div>
+      <!-- Видимость контролирует app.js по серверной роли -->
+      <button class="icon-btn" id="btn-manage" aria-label="Управление" hidden>⚙</button>
+    </header>
+
+    <!-- Блок профиля -->
+    <div class="block profile">
+      <!-- Аватар: по умолчанию силуэт; нажатие — фото из галереи.
+           ПРАВИЛО №3: белый список MIME, SVG запрещён
+           (accept + проверка MIME в app.js перед рендером) -->
+      <div class="avatar-wrap">
+        <img id="avatar-img" class="avatar" alt="Аватар" hidden>
+        <button id="avatar-placeholder" class="avatar avatar-placeholder" aria-label="Добавить фото">👤</button>
+        <input type="file" id="avatar-input"
+               accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+      </div>
+      <div class="profile-info">
+        <!-- Активные элементы (дополнение 25.11.2026):
+             кнопки — нажал → строка ввода → сохранил -->
+        <button class="profile-name" id="profile-name" aria-label="Изменить имя">(имя)</button>
+        <button class="profile-bio" id="profile-bio" aria-label="Изменить био">(био)</button>
+      </div>
+    </div>
+
+    <!-- Кнопки действий -->
+    <div class="row">
+      <button class="btn" id="btn-all-chats">Вся переписка</button>
+      <button class="btn" id="btn-my-subs">Мои подписки</button>
+    </div>
+
+    <!-- Выпадающий список подписок (ответ 18: прямо в кабинете,
+         без отдельного экрана) -->
+    <div id="subs-dropdown" class="subs-dropdown" hidden>
+      <div class="subs-header">Мои подписки</div>
+      <div id="subs-list"><!-- только textContent/createElement --></div>
+    </div>
+
+    <!-- Блок ленты: 3 участника, меняются каждые 10 секунд.
+         app.js: clearInterval таймера при уходе с экрана кабинета -->
+    <div class="block feed">
+      <div class="feed-caption">Лента</div>
+      <div id="feed-cards" class="feed-cards"><!-- 3 карточки участников --></div>
+    </div>
+
+    <!-- Кнопка «Обучение» — в самом низу (ответ 16) -->
+    <button class="btn btn-full" id="btn-education">Обучение</button>
+
+  </section>
+
+  <!-- ============================================
+       ЭКРАН 8: ДОБАВИТЬ ЛОГИН (диалог, ответ 14).
+       ПРАВИЛО №4: валидация логина — один регулярный
+       шаблон в app.js (латиница через @, как в Telegram)
+       ============================================ -->
+  <div id="dialog-login" class="dialog-overlay" hidden
+       role="dialog" aria-modal="true" aria-labelledby="login-dialog-title">
+    <div class="dialog">
+      <p id="login-dialog-title">После получения логина вы будете добавлены в общую ленту пользователей. Согласны?</p>
+      <div class="row">
+        <button class="btn" id="login-yes">Да</button>
+        <button class="btn" id="login-no">Нет</button>
+      </div>
+      <form id="login-form" hidden novalidate>
+        <input type="text" id="login-input"
+               placeholder="Логин латиницей через @"
+               maxlength="32"
+               autocapitalize="off" autocorrect="off" spellcheck="false"
+               inputmode="text">
+        <p id="login-message" class="dialog-message"></p>
+        <button type="submit" class="btn btn-primary" id="login-save">Сохранить</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================
+       Экраны-заглушки v1 (наполняются на следующих шагах)
+       ============================================ -->
+  <section id="screen-all-chats" class="screen" hidden><!-- Экран 3: Вся переписка --></section>
+  <section id="screen-chat" class="screen" hidden><!-- Экран 4: Чат с пользователем --></section>
+  <section id="screen-feed-full" class="screen" hidden><!-- Экран 6: Лента, полный список --></section>
+  <section id="screen-roles" class="screen" hidden><!-- Экран 7: Дать/забрать роль (админ) --></section>
+  <section id="screen-landing-editor" class="screen" hidden><!-- Экран 10: Редактор лендинга (админ) --></section>
+  <section id="screen-review-check" class="screen" hidden><!-- Экран 11: Проверить отзыв --></section>
+
+  <script src="app.js?v=1" defer></script>
+</body>
+</html>

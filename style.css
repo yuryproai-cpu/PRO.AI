@@ -1,0 +1,190 @@
+/* =====================================================
+   PRO.AI — styles.css (v1)
+   Минимализм: только внешний вид, без логики.
+   Весь стиль — через переменные темы: смена дизайна
+   позже = правка только этого файла (ответ 9).
+   ===================================================== */
+
+:root {
+  --color-bg: #ffffff;
+  --color-header-bg: #000000;      /* шапка: чёрная, сплошным цветом */
+  --color-header-text: #ffffff;    /* логотип: чисто белый, без обводки */
+  --color-text: #111111;
+  --color-muted: #777777;
+  --color-border: #d9d9d9;
+  --color-block-bg: #ffffff;
+  --color-btn-bg: #000000;
+  --color-btn-text: #ffffff;
+  --color-placeholder: #e5e5e5;
+  --radius: 12px;
+  --gap: 12px;
+  --font: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; /* без засечек */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+}
+
+.screen { min-height: 100vh; display: flex; flex-direction: column; }
+[hidden] { display: none !important; }
+
+/* ---------- Сплэш ---------- */
+#splash {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--color-header-bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.splash-logo { color: var(--color-header-text); font-size: 24px; font-weight: 700; }
+
+/* ---------- Шапки ---------- */
+.landing-header, .app-header {
+  background: var(--color-header-bg);
+  color: var(--color-header-text);
+  display: flex; align-items: center;
+  padding: 12px 16px;
+  position: sticky; top: 0;
+}
+.app-header { justify-content: space-between; }
+.landing-header { justify-content: center; }
+.logo { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+.icon-btn {
+  background: none; border: none; color: var(--color-header-text);
+  font-size: 20px; padding: 4px 8px; cursor: pointer;
+}
+
+/* ---------- Блоки-контейнеры ---------- */
+.block {
+  background: var(--color-block-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin: var(--gap) 16px;
+  padding: 16px;
+}
+.block h2 { font-size: 16px; margin-bottom: 8px; }
+.block p { font-size: 14px; line-height: 1.45; color: var(--color-muted); }
+.center { text-align: center; }
+.empty-state { color: var(--color-muted); font-style: italic; }
+
+/* ---------- Кнопки ---------- */
+.btn {
+  font-family: var(--font);
+  font-size: 15px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius);
+  background: var(--color-block-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--color-btn-bg);
+  color: var(--color-btn-text);
+}
+.btn-full { width: calc(100% - 32px); margin: var(--gap) 16px; }
+.row { display: flex; gap: var(--gap); margin: var(--gap) 16px; }
+.row .btn { flex: 1; }
+
+/* ---------- Профиль ---------- */
+.profile { display: flex; align-items: flex-start; gap: var(--gap); }
+.avatar-wrap { flex-shrink: 0; }
+.avatar {
+  width: 72px; height: 72px;          /* круглая (ответ 2) */
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-placeholder);
+  object-fit: cover;
+}
+.avatar-placeholder {
+  font-size: 32px; line-height: 72px; text-align: center;
+  cursor: pointer;
+}
+.profile-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+/* Активные элементы: кнопки с текстовым стилем */
+.profile-name, .profile-bio {
+  font-family: var(--font);
+  background: none; border: none; cursor: pointer;
+  text-align: left; padding: 0;
+  color: var(--color-text);
+}
+.profile-name { font-size: 18px; font-weight: 700; }
+.profile-bio {
+  font-size: 14px; line-height: 1.4; color: var(--color-muted);
+  white-space: pre-wrap;              /* био: перенос по строкам, лимит 160 */
+  word-wrap: break-word;
+}
+
+/* ---------- Выпадающий список подписок (ответ 18) ---------- */
+.subs-dropdown {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin: 0 16px var(--gap);
+  padding: 12px 16px;
+}
+.subs-header { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+.subs-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; cursor: pointer;
+  border-bottom: 1px solid var(--color-border);
+}
+.subs-item:last-child { border-bottom: none; }
+
+/* ---------- Лента: 3 участника ---------- */
+.feed-caption { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.feed-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); }
+.feed-card { text-align: center; cursor: pointer; }
+.feed-card .avatar {
+  width: 56px; height: 56px; margin: 0 auto 6px;
+  display: block; border: none; cursor: pointer;
+}
+.feed-card .name {
+  font-size: 12px; color: var(--color-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---------- Лендинг ---------- */
+.interview-photo {
+  width: 96px; height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 10px;
+}
+.steps { margin-left: 18px; font-size: 14px; line-height: 1.6; color: var(--color-muted); }
+.review-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.footer-links { display: flex; gap: 16px; justify-content: center; }
+.footer-links a { color: var(--color-muted); font-size: 13px; }
+
+/* ---------- Диалоги ---------- */
+.dialog-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.dialog {
+  background: var(--color-block-bg);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 100%; max-width: 360px;
+}
+.dialog p { font-size: 14px; line-height: 1.45; margin-bottom: 12px; }
+.dialog .row { margin: 0; }
+#login-form { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+#login-input {
+  font-family: var(--font);
+  font-size: 16px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  width: 100%;
+}
+.dialog-message { font-size: 13px; color: var(--color-muted); }
