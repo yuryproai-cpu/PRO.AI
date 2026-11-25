@@ -1,33 +1,27 @@
 /* =====================================================
    PRO.AI — app.js (v1, финальная сборка)
-   Логика без оформления (стили — только styles.css).
-   Подключение в index.html: <script src="app.js?v=1" defer></script>
-   При каждой правке этого файла: ?v= → +1 (правило 10).
    ===================================================== */
 'use strict';
 
 /* ---------- Единая конфигурация ---------- */
 
 const CONFIG = {
-  // Адрес Cloudflare Worker — вшит, менять не нужно.
   API_BASE: 'https://pro-ai.yury-proai.workers.dev/api',
 };
 
-/* ПРАВИЛО 12: единственный регулярный шаблон логина.
-   Латиница через @, как в Telegram. Менять только здесь. */
+/* ПРАВИЛО 12: единственный регулярный шаблон логина. */
 const LOGIN_REGEX = /^@[a-zA-Z][a-zA-Z0-9_]{3,31}$/;
 
-/* ПРАВИЛО 11: строгий белый список MIME для аватара.
-   SVG отсутствует намеренно. */
+/* ПРАВИЛО 11: строгий белый список MIME для аватара. */
 const AVATAR_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
 /* ---------- Состояние ---------- */
 
 const state = {
-  profile: null,        // { login, name, bio, avatarUrl, feedConsent, activated }
-  role: 'user',         // ТОЛЬКО с сервера (правило 4). Локально не вычисляется.
-  feedTimer: null,      // таймер ленты — чистим при уходе с экрана
+  profile: null,
+  role: 'user',
+  feedTimer: null,
   currentScreen: null,
 };
 
@@ -41,7 +35,6 @@ function show(screenId) {
   state.currentScreen = screenId;
 }
 
-/* ПРАВИЛО 9: единственный способ вставить пользовательский текст. */
 function setText(el, value) {
   el.textContent = value;
 }
@@ -49,11 +42,11 @@ function setText(el, value) {
 function makeEl(tag, className, textValue) {
   const el = document.createElement(tag);
   if (className) el.className = className;
-  if (textValue !== undefined) setText(el, textValue); // всегда textContent
+  if (textValue !== undefined) setText(el, textValue);
   return el;
 }
 
-/* ---------- API (Cloudflare Worker) ---------- */
+/* ---------- API ---------- */
 
 async function api(path, options = {}) {
   const res = await fetch(CONFIG.API_BASE + path, {
@@ -65,21 +58,19 @@ async function api(path, options = {}) {
   return res.json();
 }
 
-/* Проверка initData и загрузка профиля + серверной роли одним запросом. */
 async function loadMe() {
   const tg = window.Telegram?.WebApp;
   const initData = tg?.initData || '';
   const data = await api('/me', { method: 'POST', body: { initData } });
-  state.profile = data.profile;     // null — кабинет не активирован
-  state.role = data.role || 'user'; // сервер решает, клиент верит
+  state.profile = data.profile;
+  state.role = data.role || 'user';
   return data;
 }
 
-/* ---------- Кнопка управления в шапке (правило 4) ---------- */
+/* ---------- Кнопка управления в шапке ---------- */
 
 function renderControlButton() {
   const btn = $('control-btn');
-  // Показываем ТОЛЬКО по серверной роли. user кнопки не имеет вовсе.
   if (state.role === 'admin' || state.role === 'moderator') {
     btn.hidden = false;
   } else {
@@ -88,10 +79,9 @@ function renderControlButton() {
   renderMenu();
 }
 
-/* Меню управления: две группы — админ-панель и панель модера (правило 8). */
 function renderMenu() {
   const menu = $('control-menu');
-  menu.textContent = ''; // очистка через textContent-семантику
+  menu.textContent = '';
   menu.hidden = true;
 
   const isAdmin = state.role === 'admin';
@@ -100,14 +90,11 @@ function renderMenu() {
 
   if (isAdmin) {
     menu.appendChild(makeEl('div', 'menu-title', 'Админ-панель'));
-    // «Дать/забрать роль» — по ID или из друзей (ответ 11)
     menu.appendChild(menuItem('Дать/забрать роль', () => show('screen-role')));
-    // «Редактировать лендинг» — сразу добавлено (ответ 20)
     menu.appendChild(menuItem('Редактировать лендинг', () => show('screen-landing-edit')));
   }
   if (isAdmin || isModer) {
     menu.appendChild(makeEl('div', 'menu-title', 'Панель модера'));
-    // «Проверить отзыв» — у обеих групп (ответ 20)
     menu.appendChild(menuItem('Проверить отзыв', () => show('screen-review-check')));
   }
 }
@@ -119,7 +106,7 @@ function menuItem(label, onClick) {
   return b;
 }
 
-/* ---------- Левое меню (у всех) ---------- */
+/* ---------- Левое меню ---------- */
 
 function renderLeftMenu() {
   const menu = $('left-menu');
@@ -128,9 +115,6 @@ function renderLeftMenu() {
 
   menu.appendChild(menuItem('Мой кабинет', () => show('screen-cabinet')));
 
-  // «Написать отзыв о проекте» — только у пользователей с логином (ответы 20–21).
-  // Сам отзыв отправится после появления обучения (ответ 22) — сейчас пункт виден,
-  // но внутри будет пометка, что обучение в разработке.
   if (state.profile && state.profile.login) {
     menu.appendChild(menuItem('Написать отзыв о проекте', () => show('screen-write-review')));
   }
@@ -150,8 +134,6 @@ async function init() {
   try {
     await loadMe();
   } catch (e) {
-    // Сервер недоступен — продолжаем как неактивированный, повторная
-    // попытка произойдёт при следующем действии.
     state.profile = null;
     state.role = 'user';
   }
@@ -159,8 +141,6 @@ async function init() {
   routeEntry();
 }
 
-/* Решение 25.11.2026 + ответ 19:
-   кабинет активирован = логин заполнен. */
 function isActivated() {
   return Boolean(state.profile && state.profile.login);
 }
@@ -177,24 +157,21 @@ function routeEntry() {
   renderLeftMenu();
 }
 
-/* ---------- Лендинг-витрина (экран №9) ---------- */
+/* ---------- Лендинг-витрина ---------- */
 
 async function renderLanding() {
-  // Контент лендинга хранится в базе и редактируется админом (ответ 20).
-  // Здесь — рендер из базы, все тексты через textContent (правило 9).
   try {
     const content = await api('/landing');
     setText($('land-about'), content.about || '');
     setText($('land-interview'), content.interview || '');
     if (content.interviewPhoto) {
-      $('land-photo').src = content.interviewPhoto; // URL из нашего хранилища
+      $('land-photo').src = content.interviewPhoto;
       $('land-photo').hidden = false;
     }
     renderReviews(content.reviews || []);
     renderProducts(content.products || []);
     renderFaq(content.faq || []);
   } catch (e) {
-    // Блок отзывов в пустом состоянии (ответ 22)
     setText($('land-reviews-empty'), 'Ещё никто не оставил свой отзыв');
   }
 }
@@ -210,7 +187,7 @@ function renderReviews(reviews) {
   reviews.forEach((r) => {
     const card = makeEl('div', 'review-card');
     card.appendChild(makeEl('div', 'review-author', r.authorLogin));
-    card.appendChild(makeEl('p', 'review-text', r.text)); // textContent внутри
+    card.appendChild(makeEl('p', 'review-text', r.text));
     box.appendChild(card);
   });
 }
@@ -232,14 +209,13 @@ function renderFaq(items) {
   });
 }
 
-/* ---------- Диалог «Добавить логин» (ответы 14, 19) ---------- */
+/* ---------- Диалог «Добавить логин» ---------- */
 
 function openLoginDialog() {
   $('login-input').value = '';
   $('login-error').hidden = true;
   $('login-consent').checked = false;
   $('login-dialog').hidden = false;
-  // фокус с задержкой — чтобы мобильная клавиатура не «съела» диалог
   setTimeout(() => $('login-input').focus(), 350);
 }
 
@@ -247,7 +223,6 @@ async function submitLogin() {
   const input = $('login-input');
   const login = input.value.trim();
 
-  // ПРАВИЛО 12: валидация по единственному шаблону
   if (!LOGIN_REGEX.test(login)) {
     showLoginError('Логин: латиница через @, от 4 до 32 символов. Пример: @pro_ai');
     return;
@@ -269,9 +244,8 @@ async function submitLogin() {
       state.profile = data.profile;
       state.role = data.role || state.role;
       $('login-dialog').hidden = true;
-      routeEntry(); // кабинет активирован — все последующие входы ведут в кабинет
+      routeEntry();
     } else {
-      // ответ 14: «Занят, выбери другой»
       showLoginError(data.error || 'Занят, выбери другой');
     }
   } catch (e) {
@@ -287,14 +261,11 @@ function showLoginError(msg) {
   el.hidden = false;
 }
 
-/* ---------- Личный кабинет (экран №1) ---------- */
+/* ---------- Личный кабинет ---------- */
 
 function renderCabinet() {
   const p = state.profile || {};
 
-  // ПРАВИЛО 9: всё пользовательское — через textContent.
-  // Пустые поля — активные элементы, а не мёртвые заглушки
-  // (дополнение владельца 25.11.2026).
   setText($('cabinet-name'), p.name || '(имя)');
   setText($('cabinet-bio'), p.bio || '(био)');
 
@@ -305,17 +276,14 @@ function renderCabinet() {
     setText(avatar, '');
   } else {
     avatar.classList.add('avatar-placeholder');
-    setText(avatar, '👤'); // силуэт человечка
+    setText(avatar, '👤');
   }
 
-  // Счётчики подписок/подписчиков (ответ 12)
   setText($('cabinet-subs'), 'Подписки: ' + (p.subscriptionsCount || 0));
   setText($('cabinet-followers'), 'Подписчики: ' + (p.followersCount || 0));
 
   renderFeedBlock();
 }
-
-/* Активные элементы профиля: нажал → строка ввода → «Сохранить». */
 
 function openEditDialog(field) {
   const dialog = $('edit-dialog');
@@ -344,14 +312,13 @@ async function submitEdit() {
       $('edit-dialog').hidden = true;
     }
   } catch (e) {
-    // молча повторяемо: пользователь может нажать «Сохранить» ещё раз
+    /* повторная попытка по нажатию «Сохранить» */
   }
 }
 
-/* ---------- Аватар: белый список MIME (правило 11) ---------- */
+/* ---------- Аватар: белый список MIME ---------- */
 
 function onAvatarPick(file) {
-  // Проверка ДО рендера и ДО загрузки. SVG блокирован отсутствием в списке.
   if (!file || !AVATAR_MIME.includes(file.type)) {
     setText($('avatar-error'), 'Поддерживаются JPEG, PNG, WebP и GIF.');
     $('avatar-error').hidden = false;
@@ -366,7 +333,6 @@ function onAvatarPick(file) {
   openCropEditor(file);
 }
 
-/* Редактор аватара (ответ 10): зум ползунком + перемещение пальцами. */
 function openCropEditor(file) {
   const img = new Image();
   img.onload = () => {
@@ -394,7 +360,6 @@ function openCropEditor(file) {
       px = e.touches[0].clientX; py = e.touches[0].clientY;
       draw();
     };
-    // мышь — для десктопа
     canvas.onmousedown = (e) => {
       px = e.clientX; py = e.clientY;
       canvas.onmousemove = (ev) => {
@@ -423,12 +388,12 @@ function openCropEditor(file) {
   };
   img.src = URL.createObjectURL(file);
 }
-/* ---------- Блок ленты: 3 участника, смена каждые 10 сек (ответы 14–15) ---------- */
+/* ---------- Блок ленты: 3 участника, каждые 10 сек ---------- */
 
 async function renderFeedBlock() {
   const box = $('feed-cards');
   box.textContent = '';
-  stopFeedTimer(); // ПРАВИЛО (ревью): чистим прошлый таймер перед новым
+  stopFeedTimer();
 
   let users = [];
   try {
@@ -436,7 +401,6 @@ async function renderFeedBlock() {
   } catch (e) { users = []; }
 
   if (users.length < 3) {
-    // Шаблон профиля + подпись (ответ 15)
     setText($('feed-caption'), 'Здесь можете быть вы, добавьте свой ник в базу, ' +
       'дайте разрешение на показ всем участникам, и ваши друзья смогут вас найти');
     return;
@@ -446,7 +410,7 @@ async function renderFeedBlock() {
 
   state.feedTimer = setInterval(async () => {
     try {
-      const next = await api('/feed/top3'); // база решает, кто виден (ответ 14)
+      const next = await api('/feed/top3');
       drawFeedUsers(next);
     } catch (e) { /* тишина до следующего тика */ }
   }, 10000);
@@ -462,7 +426,7 @@ function drawFeedUsers(users) {
     av.alt = '';
     if (u.avatarUrl) av.src = u.avatarUrl;
     card.appendChild(av);
-    card.appendChild(makeEl('div', 'name', u.login)); // textContent
+    card.appendChild(makeEl('div', 'name', u.login));
     card.addEventListener('click', () => openGuestProfile(u));
     box.appendChild(card);
   });
@@ -475,7 +439,7 @@ function stopFeedTimer() {
   }
 }
 
-/* ---------- Полная лента: 20 человек на страницу (ответ 14) ---------- */
+/* ---------- Полная лента: 20 человек на страницу ---------- */
 
 async function openFeedPage(page = 1, query = '') {
   const params = new URLSearchParams({ page: String(page), q: query });
@@ -491,12 +455,11 @@ async function openFeedPage(page = 1, query = '') {
   show('screen-feed');
 }
 
-/* Поиск: по нику и словам из био (ответ 14). */
 async function onFeedSearch() {
   await openFeedPage(1, $('feed-search').value.trim());
 }
 
-/* ---------- Профиль другого пользователя (экран №2, как гость) ---------- */
+/* ---------- Профиль другого пользователя (гость) ---------- */
 
 function openGuestProfile(user) {
   stopFeedTimer();
@@ -507,8 +470,7 @@ function openGuestProfile(user) {
   setText($('guest-followers'), 'Подписчики: ' + (user.followersCount || 0));
 
   const btn = $('guest-subscribe');
-  // Три состояния кнопки (ответ 12 + уточнения). Сервер отдаёт отношение.
-  setText(btn, user.relation || 'Подписаться'); // Подписаться / Вы подписаны / Друзья
+  setText(btn, user.relation || 'Подписаться');
 
   show('screen-guest');
 }
@@ -517,11 +479,11 @@ async function toggleSubscribe() {
   const login = $('guest-login').textContent;
   const data = await api('/subscribe', { method: 'POST', body: { login } });
   if (data.ok) {
-    setText($('guest-subscribe'), data.relation); // сервер — источник истины
+    setText($('guest-subscribe'), data.relation);
   }
 }
 
-/* ---------- Выпадающий список «Мои подписки» (ответ 18) ---------- */
+/* ---------- Выпадающий список «Мои подписки» ---------- */
 
 async function toggleSubsDropdown() {
   const box = $('subs-dropdown');
@@ -535,33 +497,33 @@ async function toggleSubsDropdown() {
     data.users.forEach((u) => {
       const row = makeEl('div', 'subs-item');
       row.appendChild(makeEl('div', 'name', u.login));
-      row.addEventListener('click', () => openGuestProfile(u)); // как гость
+      row.addEventListener('click', () => openGuestProfile(u));
       list.appendChild(row);
     });
   }
   box.hidden = false;
 }
 
-/* ---------- Кнопка «Обучение» (ответ 4) ---------- */
+/* ---------- Кнопка «Обучение» ---------- */
 
 function onTrainingClick() {
-  show('screen-training'); // страница «Раздел обучения в разработке»
+  show('screen-training');
 }
 
-/* ---------- Навигация назад (ответ 17) ---------- */
+/* ---------- Навигация назад ---------- */
 
 function goBack() {
   stopFeedTimer();
   const s = state.currentScreen;
   if (s === 'screen-role' || s === 'screen-landing-edit' || s === 'screen-review-check') {
-    show('screen-cabinet'); // возврат в меню, из которого пришли
+    show('screen-cabinet');
     openControlMenu();
   } else if (s === 'screen-guest' || s === 'screen-feed' || s === 'screen-dialogs' ||
              s === 'screen-chat' || s === 'screen-training' || s === 'screen-write-review') {
     renderCabinet();
-    show('screen-cabinet'); // главный экран своего профиля
+    show('screen-cabinet');
   } else if (s === 'screen-landing') {
-    show('screen-landing'); // с лендинга некуда возвращаться
+    show('screen-landing');
   }
 }
 
@@ -569,7 +531,7 @@ function openControlMenu() {
   $('control-menu').hidden = !$('control-menu').hidden;
 }
 
-/* ---------- Переписка (ответ 8) ---------- */
+/* ---------- Переписка ---------- */
 
 async function openDialogs() {
   const data = await api('/dialogs');
@@ -577,7 +539,7 @@ async function openDialogs() {
   box.textContent = '';
   data.dialogs.forEach((d) => {
     const row = makeEl('div', 'subs-item');
-    row.appendChild(makeEl('div', 'name', d.login)); // аватар + имя, без поля ввода
+    row.appendChild(makeEl('div', 'name', d.login));
     row.addEventListener('click', () => openChat(d));
     box.appendChild(row);
   });
@@ -591,7 +553,7 @@ async function openChat(dialog) {
   box.textContent = '';
   data.messages.forEach((m) => {
     const line = makeEl('div', m.mine ? 'msg mine' : 'msg');
-    setText(line, m.text); // ПРАВИЛО 9
+    setText(line, m.text);
     box.appendChild(line);
   });
   show('screen-chat');
@@ -613,7 +575,7 @@ async function sendMessage() {
   }
 }
 
-/* ---------- Назначение роли (ответ 11, только админ) ---------- */
+/* ---------- Назначение роли (только админ) ---------- */
 
 async function findUserById() {
   const id = $('role-search').value.trim();
@@ -632,16 +594,14 @@ async function confirmRole() {
     method: 'POST',
     body: {
       telegramId: $('role-user-id').textContent,
-      role: $('role-select').value, // сейчас доступна только moder
+      role: $('role-select').value,
     },
   });
   if (data.ok) goBack();
 }
 
-/* ---------- Назначение друга (ответ 11) ---------- */
-
 async function openFriendsForRole() {
-  const data = await api('/subscriptions'); // список друзей из кабинета
+  const data = await api('/subscriptions');
   const box = $('friends-list');
   box.textContent = '';
   data.users.forEach((u) => {
@@ -655,7 +615,7 @@ async function openFriendsForRole() {
   });
 }
 
-/* ---------- Проверка отзыва (админ + модератор) ---------- */
+/* ---------- Проверка отзыва (админ и модераторы) ---------- */
 
 async function loadReviewQueue() {
   const data = await api('/reviews/queue');
@@ -665,31 +625,30 @@ async function loadReviewQueue() {
     const card = makeEl('div', 'review-card');
     card.appendChild(makeEl('div', 'review-author', r.authorLogin));
     card.appendChild(makeEl('p', 'review-text', r.text));
-    const ok = makeEl('button', 'btn btn-primary', 'Одобрить');
-    ok.type = 'button';
-    ok.addEventListener('click', async () => {
+    const okBtn = makeEl('button', 'btn btn-primary', 'Одобрить');
+    okBtn.type = 'button';
+    okBtn.addEventListener('click', async () => {
       await api('/reviews/moderate', { method: 'POST', body: { id: r.id, approve: true } });
       card.remove();
     });
-    const no = makeEl('button', 'btn', 'Отклонить');
-    no.type = 'button';
-    no.addEventListener('click', async () => {
+    const noBtn = makeEl('button', 'btn', 'Отклонить');
+    noBtn.type = 'button';
+    noBtn.addEventListener('click', async () => {
       await api('/reviews/moderate', { method: 'POST', body: { id: r.id, approve: false } });
       card.remove();
     });
-    card.appendChild(ok);
-    card.appendChild(no);
+    card.appendChild(okBtn);
+    card.appendChild(noBtn);
     box.appendChild(card);
   });
 }
 
-/* ---------- Редактор лендинга (ответ 20, только админ) ---------- */
+/* ---------- Редактор лендинга (только админ) ---------- */
 
 async function loadLandingEditor() {
   const c = await api('/landing');
   $('edit-land-about').value = c.about || '';
   $('edit-land-interview').value = c.interview || '';
-  // поля и пояснения: «что куда вписывается и что вставляется»
 }
 
 async function saveLanding() {
@@ -704,7 +663,6 @@ async function saveLanding() {
 /* ---------- Навешивание обработчиков ---------- */
 
 function bindEvents() {
-  // Диалог логина
   $('open-login').addEventListener('click', openLoginDialog);
   $('open-login-2').addEventListener('click', openLoginDialog);
   $('login-submit').addEventListener('click', submitLogin);
@@ -712,53 +670,50 @@ function bindEvents() {
     if (e.key === 'Enter') submitLogin();
   });
 
-  // Активные элементы профиля
   $('cabinet-name').addEventListener('click', () => openEditDialog('name'));
   $('cabinet-bio').addEventListener('click', () => openEditDialog('bio'));
   $('edit-save').addEventListener('click', submitEdit);
 
-  // Аватар: выбор из галереи устройства
   $('cabinet-avatar').addEventListener('click', () => $('avatar-file').click());
   $('avatar-file').addEventListener('change', (e) => onAvatarPick(e.target.files[0]));
 
-  // Меню
   $('left-btn').addEventListener('click', () => { $('left-menu').hidden = !$('left-menu').hidden; });
   $('control-btn').addEventListener('click', openControlMenu);
 
-  // Кнопки кабинета
   $('btn-dialogs').addEventListener('click', openDialogs);
   $('btn-subs').addEventListener('click', toggleSubsDropdown);
   $('btn-training').addEventListener('click', onTrainingClick);
 
-  // Лента: полный список и поиск
   $('feed-open').addEventListener('click', () => openFeedPage(1));
   $('feed-search-btn').addEventListener('click', onFeedSearch);
   $('feed-next').addEventListener('click', () => openFeedPage(($('feed-page').value | 0) + 1));
 
-  // Профиль гостя
   $('guest-subscribe').addEventListener('click', toggleSubscribe);
   $('guest-message').addEventListener('click', async () => {
-    await openChat({ login: $('guest-login').textContent }); // «Написать сообщение»
+    await openChat({ login: $('guest-login').textContent });
   });
 
-  // Чат
   $('chat-send').addEventListener('click', sendMessage);
   $('chat-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendMessage();
   });
 
-  // Роли
   $('role-find').addEventListener('click', findUserById);
   $('role-confirm').addEventListener('click', confirmRole);
   $('role-friends').addEventListener('click', openFriendsForRole);
 
-  // Назад
   document.querySelectorAll('[data-back]').forEach((b) =>
     b.addEventListener('click', goBack)
   );
 
-  // Редактор лендинга
   $('land-save').addEventListener('click', saveLanding);
+
+  // После входа под админом — подгружаем админ-экраны при их открытии
+  $('control-menu').addEventListener('click', () => {});
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'screen-landing-edit') loadLandingEditor();
+    if (e.target && e.target.id === 'screen-review-check') loadReviewQueue();
+  });
 }
 
 /* ---------- Запуск ---------- */
