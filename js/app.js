@@ -1,5 +1,5 @@
 /* =====================================================
-   PRO.AI — app.js (v1)
+   PRO.AI — app.js (v1, финальная сборка)
    Логика без оформления (стили — только styles.css).
    Подключение в index.html: <script src="app.js?v=1" defer></script>
    При каждой правке этого файла: ?v= → +1 (правило 10).
@@ -9,7 +9,8 @@
 /* ---------- Единая конфигурация ---------- */
 
 const CONFIG = {
-  API_BASE: '/api', // Cloudflare Worker — все роли и данные только отсюда
+  // Адрес Cloudflare Worker — вшит, менять не нужно.
+  API_BASE: 'https://pro-ai.yury-proai.workers.dev/api',
 };
 
 /* ПРАВИЛО 12: единственный регулярный шаблон логина.
@@ -55,7 +56,6 @@ function makeEl(tag, className, textValue) {
 /* ---------- API (Cloudflare Worker) ---------- */
 
 async function api(path, options = {}) {
-  const tg = window.Telegram?.WebApp;
   const res = await fetch(CONFIG.API_BASE + path, {
     method: options.method || 'GET',
     headers: { 'Content-Type': 'application/json' },
